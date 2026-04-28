@@ -295,6 +295,40 @@ tbody tr.skipped td.always-on{opacity:1}
 table input,table select{padding:4px 6px;font-size:12px;width:100%}
 table input.tight{width:54px}
 table input.small{width:48px}
+table input.coord{width:62px;color:var(--ink);font-variant-numeric:tabular-nums}
+/* Row banding: same part type = same tint, alternating between two shades.
+   Each band also has a subtle colored left edge so the grouping is visible
+   even on rows that are mostly numeric inputs. */
+tbody tr.band-a{background:#161a20}
+tbody tr.band-b{background:#1d2129}
+tbody tr.band-a td:first-child{box-shadow: inset 2px 0 0 var(--cyan)}
+tbody tr.band-b td:first-child{box-shadow: inset 2px 0 0 var(--amber)}
+tbody tr:hover{background:#262b36 !important}
+
+/* PAGINATION */
+.pager{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  margin-top:14px;padding:10px 12px;border:1px solid var(--line);
+  background:var(--panel-2);font-size:11.5px;
+}
+.page-btn{
+  background:transparent;border:1px solid var(--line);color:var(--ink);
+  padding:6px 14px;cursor:pointer;
+  font-family:'Archivo Narrow',sans-serif;font-weight:600;
+  letter-spacing:.12em;text-transform:uppercase;font-size:11px;
+  transition:all .12s;
+}
+.page-btn:hover:not(:disabled){border-color:var(--ink);background:var(--panel)}
+.page-btn:disabled{opacity:.35;cursor:not-allowed}
+.page-info{color:var(--ink-dim);font-family:'JetBrains Mono',monospace;font-size:11.5px;letter-spacing:.04em}
+.page-info b{color:var(--ink);font-weight:500}
+.page-spacer{flex:1}
+.page-jump-label{color:var(--ink-faint);font-size:10px;letter-spacing:.18em;text-transform:uppercase}
+.page-jump{
+  background:var(--panel);border:1px solid var(--line);color:var(--ink);
+  padding:5px 7px;width:54px;font-family:inherit;font-size:12px;text-align:center;
+}
+.page-jump:focus{border-color:var(--amber);outline:none}
 
 /* TOOLTIP */
 .th-with-tip{display:inline-flex;align-items:center;gap:4px}
@@ -494,16 +528,17 @@ footer{
 
 <nav class="rail" id="rail">
   <div class="step" data-step="1"><div class="n">01</div><div class="lbl">Load File</div></div>
-  <div class="step" data-step="2"><div class="n">02</div><div class="lbl">Assign Feeders</div></div>
-  <div class="step" data-step="3"><div class="n">03</div><div class="lbl">Board / Calib</div></div>
-  <div class="step" data-step="4"><div class="n">04</div><div class="lbl">Export DPV</div></div>
+  <div class="step" data-step="2"><div class="n">02</div><div class="lbl">Feeder Mapping</div></div>
+  <div class="step" data-step="3"><div class="n">03</div><div class="lbl">Assign Feeders</div></div>
+  <div class="step" data-step="4"><div class="n">04</div><div class="lbl">Board / Calib</div></div>
+  <div class="step" data-step="5"><div class="n">05</div><div class="lbl">Export DPV</div></div>
 </nav>
 
 <!-- ===== STEP 1: LOAD ===== -->
 <section class="panel" data-panel="1">
   <div class="panel-head">
     <h2>① Load Pick-and-Place File</h2>
-    <span class="tag">Step 1 / 4</span>
+    <span class="tag">Step 1 / 5</span>
   </div>
   <div class="panel-body">
     <div class="alert">
@@ -554,43 +589,78 @@ footer{
   </div>
 </section>
 
-<!-- ===== STEP 3: ASSIGN FEEDERS ===== -->
+<!-- ===== STEP 2: FEEDER MAPPING ===== -->
 <section class="panel hidden" data-panel="2">
   <div class="panel-head">
-    <h2>② Assign Feeders / Stations</h2>
-    <span class="tag">Step 2 / 4</span>
+    <h2>② Feeder Mapping <span style="font-weight:400;font-size:11px;letter-spacing:.1em;color:var(--ink-faint);margin-left:8px">(optional)</span></h2>
+    <span class="tag">Step 2 / 5</span>
+  </div>
+  <div class="panel-body">
+    <div class="alert">
+      For each unique <b>Value + Package</b> pair found in your file, optionally assign a <b>Feeder ID</b> and <b>Nozzle</b>. Mapped values become the defaults on Step 3. Leave blank to skip a row — those parts will get auto-guessed defaults instead. <b>Save Config</b> stores this mapping so you can reuse it on future boards.
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:14px;flex-wrap:wrap">
+      <div style="font-size:11px;color:var(--ink-faint);letter-spacing:.1em;text-transform:uppercase" id="mapStats">—</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn ghost" id="exportConfig" style="padding:7px 14px;font-size:11px" title="Save the current Value+Package → feeder/nozzle mapping to a .json file">↑ Save config</button>
+        <button class="btn ghost" id="importConfig" style="padding:7px 14px;font-size:11px" title="Load mappings from a previously-saved .json file">↓ Load config</button>
+        <input type="file" id="importConfigFile" accept=".json,application/json" hidden>
+        <button class="btn ghost" id="clearMappings" style="padding:7px 14px;font-size:11px" title="Clear all feeder ID and nozzle mappings">Clear all</button>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table id="mapTable">
+        <thead><tr>
+          <th>#</th>
+          <th>Value</th>
+          <th>Package</th>
+          <th>Count</th>
+          <th>Feeder<br><span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">ID 1–99</span></th>
+          <th>Nozzle</th>
+        </tr></thead>
+        <tbody id="mapBody"></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+      <button class="btn ghost" data-back="1">← Back</button>
+      <button class="btn primary" id="toStep3">Continue <span class="arr">→</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STEP 3: ASSIGN FEEDERS ===== -->
+<section class="panel hidden" data-panel="3">
+  <div class="panel-head">
+    <h2>③ Assign Feeders / Stations</h2>
+    <span class="tag">Step 3 / 5</span>
   </div>
   <div class="panel-body">
     <div class="statbar" id="statbar"></div>
     <div class="alert">
-      Identical parts (same value + package) are grouped to one <b>Station</b>. Set the feeder ID for each. CHM-T36VA reels: <b>1–29</b>. Front IC trays: <b>60–74</b>. IC trays: <b>80–99</b>. Tick <b>Skip</b> to leave a part out of the run, or click <b>×</b> to remove it entirely.
+      One row per placement on your board. Identical part types (same Value + Package) share feeder/nozzle/tape settings. CHM-T36VA reels: <b>1–29</b>. Front IC trays: <b>60–74</b>. IC trays: <b>80–99</b>. Tick <b>Skip</b> on a part type to leave it out of the run.
     </div>
 
     <div id="undoBanner" class="hidden" style="margin-bottom:14px;padding:11px 14px;border:1px solid var(--line);border-left:3px solid var(--amber);background:var(--panel-2);display:flex;align-items:center;justify-content:space-between;gap:14px">
       <span id="undoMsg" style="font-size:12px;color:var(--ink)"></span>
-      <button class="btn ghost" id="undoBtn" style="padding:6px 14px">↶ Undo</button>
     </div>
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:14px;flex-wrap:wrap">
-      <div style="font-size:11px;color:var(--ink-faint);letter-spacing:.1em;text-transform:uppercase">
-        Click <span style="color:var(--amber)">×</span> to remove a row · Click <span style="color:var(--cyan)">refdes</span> to drop individual parts from a group
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn ghost" id="exportConfig" style="padding:7px 14px;font-size:11px" title="Save the current feeder assignments to a .json file you can re-load later">↑ Save config</button>
-        <button class="btn ghost" id="importConfig" style="padding:7px 14px;font-size:11px" title="Load feeder assignments from a previously-saved .json file">↓ Load config</button>
-        <input type="file" id="importConfigFile" accept=".json,application/json" hidden>
-        <button class="btn ghost" id="removeSkipped" style="padding:7px 14px;font-size:11px">Remove all skipped</button>
-        <button class="btn ghost" id="restoreAll" style="padding:7px 14px;font-size:11px">Restore last delete</button>
-      </div>
+    <div style="font-size:11px;color:var(--ink-faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px">
+      Click any column header to sort · same part type shares feeder, nozzle, height, etc. · feeder/nozzle defaults come from <a href="#" id="backToMapping" style="color:var(--cyan);text-decoration:underline">Step 2 (Feeder Mapping)</a>
     </div>
 
     <div class="tbl-wrap">
       <table id="grpTable">
         <thead><tr>
           <th>#</th>
+          <th class="sortable" data-sort="ref">RefDes <span class="sort-ind"></span></th>
           <th class="sortable" data-sort="value">Value <span class="sort-ind"></span></th>
           <th class="sortable" data-sort="package">Package <span class="sort-ind"></span></th>
-          <th>Qty</th>
+          <th>X<br><span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">mm</span></th>
+          <th>Y<br><span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">mm</span></th>
+          <th>Rotation<br><span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">° · CCW+</span></th>
           <th>Feeder<br><span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">Station ID</span></th>
           <th>Nozzle</th>
           <th>
@@ -635,22 +705,6 @@ footer{
           </th>
           <th>
             <span class="th-with-tip">
-              Rot.&nbsp;offset
-              <span class="tip" tabindex="0" aria-label="What is rotation offset?">
-                <span class="tip-glyph">ⓘ</span>
-                <span class="tip-body">
-                  <b>Rotation offset</b> — degrees added to every placement of this part group, on top of the angle from your CSV (counter-clockwise positive).<br><br>
-                  Use this to fix a part orientation that's wrong by a constant amount — typically because the reel orientation differs from your library footprint's "pin 1" direction. Common fixes are <b>90°</b>, <b>180°</b>, or <b>−90°</b>.<br><br>
-                  <b>Quick check:</b> place one part on a test board with offset = 0. If pin 1 lands on the wrong pad, rotate by 90° increments until it's right, then save that offset for that part.<br><br>
-                  Saved per-feeder in your config — apply once, reuse on every board.<br><br>
-                  <em style="color:var(--ink-faint)">DPV field: combined into "Angle"</em>
-                </span>
-              </span>
-            </span>
-            <br><span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-faint)">° · added to part</span>
-          </th>
-          <th>
-            <span class="th-with-tip">
               Speed
               <span class="tip tip-right" tabindex="0" aria-label="What is the speed override?">
                 <span class="tip-glyph">ⓘ</span>
@@ -683,24 +737,32 @@ footer{
             </span>
           </th>
           <th>Skip</th>
-          <th class="sortable" data-sort="ref">RefDes <span class="sort-ind"></span></th>
-          <th style="text-align:center">Remove</th>
         </tr></thead>
         <tbody id="grpBody"></tbody>
       </table>
     </div>
+
+    <div class="pager" id="pager">
+      <button class="page-btn" id="pagePrev" aria-label="Previous page">← Prev</button>
+      <span class="page-info" id="pageInfo">—</span>
+      <button class="page-btn" id="pageNext" aria-label="Next page">Next →</button>
+      <span class="page-spacer"></span>
+      <span class="page-jump-label">Go to page</span>
+      <input type="number" id="pageJump" min="1" class="page-jump" aria-label="Jump to page number">
+    </div>
+
     <div class="actions">
-      <button class="btn ghost" data-back="1">← Back</button>
-      <button class="btn primary" id="toStep3">Continue <span class="arr">→</span></button>
+      <button class="btn ghost" data-back="2">← Back</button>
+      <button class="btn primary" id="toStep4">Continue <span class="arr">→</span></button>
     </div>
   </div>
 </section>
 
-<!-- ===== STEP 3: BOARD ===== -->
-<section class="panel hidden" data-panel="3">
+<!-- ===== STEP 4: BOARD ===== -->
+<section class="panel hidden" data-panel="4">
   <div class="panel-head">
-    <h2>③ Board Origin & Calibration</h2>
-    <span class="tag">Step 3 / 4</span>
+    <h2>④ Board Origin & Calibration</h2>
+    <span class="tag">Step 4 / 5</span>
   </div>
   <div class="panel-body">
     <div class="alert warn">
@@ -734,17 +796,17 @@ footer{
     </div>
 
     <div class="actions">
-      <button class="btn ghost" data-back="2">← Back</button>
-      <button class="btn primary" id="toStep4">Generate DPV <span class="arr">→</span></button>
+      <button class="btn ghost" data-back="3">← Back</button>
+      <button class="btn primary" id="toStep5">Generate DPV <span class="arr">→</span></button>
     </div>
   </div>
 </section>
 
-<!-- ===== STEP 4: EXPORT ===== -->
-<section class="panel hidden" data-panel="4">
+<!-- ===== STEP 5: EXPORT ===== -->
+<section class="panel hidden" data-panel="5">
   <div class="panel-head">
-    <h2>④ Review & Export</h2>
-    <span class="tag">Step 4 / 4</span>
+    <h2>⑤ Review & Export</h2>
+    <span class="tag">Step 5 / 5</span>
   </div>
   <div class="panel-body">
     <div class="statbar" id="finalStats"></div>
@@ -752,7 +814,7 @@ footer{
     <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px">DPV Preview</div>
     <pre class="code" id="dpvPreview"></pre>
     <div class="actions">
-      <button class="btn ghost" data-back="3">← Back</button>
+      <button class="btn ghost" data-back="4">← Back</button>
       <button class="btn primary" id="download">Download .dpv <span class="arr">↓</span></button>
     </div>
   </div>
@@ -838,19 +900,22 @@ footer{
         </ul>
 
         <h4>Step 2 — Assign feeders</h4>
-        <p>Identical parts (same Value + Package) are grouped into one row. Each row maps to one feeder/station on the machine. Editable per row:</p>
+        <p>The table shows <b>one row per placement</b> on your board. Identical part types (same Value + Package) share feeder/nozzle/tape settings — editing those on one row updates every row of that part type. Editable per row:</p>
         <ul>
-          <li><b>Feeder</b> — the station ID on your machine where this reel is loaded (1–99)</li>
-          <li><b>Nozzle</b> — N1 (left) for small parts, N2 (right) for larger ones</li>
-          <li><b>Tape pitch</b> — physical reel spacing in mm; see <a href="#h-tape">tape pitch reference</a></li>
-          <li><b>Height</b> — physical thickness of the part (mm)</li>
-          <li><b>Rot. offset</b> — degrees added to every placement; fixes reel-vs-footprint orientation mismatch</li>
-          <li><b>Speed</b> — 0 means use machine default; raise above 0 only if the part needs slower handling</li>
-          <li><b>Vision</b> — on for ICs and fine-pitch; can turn off for very small passives</li>
-          <li><b>Skip</b> — keeps the row visible but flags it as "don't place" in the DPV</li>
+          <li><b>X / Y</b> — placement coordinates in mm (per-placement)</li>
+          <li><b>Rotation</b> — placement angle in degrees, CCW positive (per-placement)</li>
+          <li><b>Feeder</b> — station ID where this reel is loaded (1–99) — shared across same-type parts</li>
+          <li><b>Nozzle</b> — N1 (left) for small parts, N2 (right) for larger ones — shared</li>
+          <li><b>Tape pitch</b> — physical reel spacing in mm; see <a href="#h-tape">tape pitch reference</a> — shared</li>
+          <li><b>Height</b> — physical thickness of the part (mm) — shared</li>
+          <li><b>Speed</b> — 0 means use machine default; raise above 0 only if the part needs slower handling — shared</li>
+          <li><b>Vision</b> — on for ICs and fine-pitch; can turn off for very small passives — shared</li>
+          <li><b>Skip</b> — shared; flags the entire part type as "don't place" in the DPV</li>
         </ul>
-        <p>Click any column header (Value, Package, RefDes) to sort. Click again to reverse, third time to return to insertion order.</p>
-        <p>Click <b>×</b> on a row to remove a part group entirely. Click <b>×</b> on individual RefDes pills to drop just one placement from a group. Both have undo (12-second banner + persistent "Restore last delete" button).</p>
+        <p>Click any column header (RefDes, Value, Package, X, Y, Rotation) to sort. Click again to reverse, third time to return to insertion order. RefDes uses natural sort (R1 &lt; R2 &lt; R10).</p>
+        <p>A subtle background tint clusters consecutive rows of the same part type, making it easy to scan groupings even when sorted by RefDes or coordinate.</p>
+        <p>The table is paged at <b>20 rows per page</b>. Use Prev / Next or type a page number into the jump box at the bottom of the table to navigate. Sort applies to the full dataset before paging, so sorting jumps you to page 1 with the right rows on top.</p>
+        <p>To exclude a part type from the run, tick its <b>Skip</b> checkbox — that row's placement still appears in the table (dimmed) and the DPV will mark it as skipped so the machine moves over it. Editing happens in-place; there is no separate save step.</p>
 
         <h4>Step 3 — Board origin &amp; calibration</h4>
         <p>If your CSV's coordinates aren't relative to the PCB's lower-left corner, set X/Y offsets here. See <a href="#h-board">board origin</a> for details. Fiducial points are optional — the operator typically calibrates them on the machine.</p>
@@ -906,7 +971,7 @@ footer{
           <li>You're panelizing one-up boards into a larger panel and want to shift the placements into the panel's coordinate system</li>
         </ul>
         <p><b>Quick test:</b> after Step 2 the table displays placements in the order they'll be made. If the smallest X/Y values are near zero — good. If they're at, say, X = −18 to +18 — the file uses a centered origin and you need an offset of about +18 mm.</p>
-        <p><b>Global rotation offset</b> (Step 3) rotates every placement by the same angle. Useful if you want to run the same DPV on a board mounted in a different orientation; rare otherwise. Per-feeder rotation offsets (in the feeder table) are usually what you want — they fix individual reel-vs-footprint orientation mismatches.</p>
+        <p><b>Global rotation offset</b> (Step 3) rotates every placement by the same angle. Useful if you want to run the same DPV on a board mounted in a different orientation; rare otherwise. For individual reel-vs-footprint orientation mismatches, edit the affected placements' Rotation column directly on Step 2.</p>
 
         <h3 id="h-fiducials">Fiducials &amp; calibration</h3>
         <p>Fiducials are reference marks on the PCB that the machine's camera uses to figure out exactly where your board is sitting on the bed. The CHM-T36VA expects three:</p>
@@ -937,16 +1002,18 @@ footer{
         <table>
           <thead><tr><th>UI column</th><th>DPV section</th><th>DPV field</th></tr></thead>
           <tbody>
+            <tr><td>RefDes</td><td>EComponent</td><td>Explain</td></tr>
+            <tr><td>Value + Package</td><td>Station, EComponent</td><td>Note</td></tr>
+            <tr><td>X (mm)</td><td>EComponent</td><td>DeltX (+ board X offset)</td></tr>
+            <tr><td>Y (mm)</td><td>EComponent</td><td>DeltY (+ board Y offset)</td></tr>
+            <tr><td>Rotation (°)</td><td>EComponent</td><td>Angle (+ global rotation offset, normalized to ±180°)</td></tr>
             <tr><td>Feeder</td><td>Station, EComponent</td><td>ID, STNo.</td></tr>
             <tr><td>Nozzle (N1/N2)</td><td>EComponent</td><td>PHead</td></tr>
             <tr><td>Tape pitch</td><td>Station</td><td>FeedRates</td></tr>
             <tr><td>Height</td><td>Station, EComponent</td><td>Height</td></tr>
-            <tr><td>Rot. offset</td><td>EComponent</td><td>Angle (added to row's rotation)</td></tr>
             <tr><td>Speed</td><td>Station, EComponent</td><td>Speed</td></tr>
             <tr><td>Vision</td><td>Station, EComponent</td><td>Status (bit 4)</td></tr>
             <tr><td>Skip</td><td>EComponent</td><td>Skip (bit 1 of Status)</td></tr>
-            <tr><td>RefDes</td><td>EComponent</td><td>Explain</td></tr>
-            <tr><td>Value + Package</td><td>Station, EComponent</td><td>Note</td></tr>
           </tbody>
         </table>
 
@@ -960,10 +1027,10 @@ footer{
           <li>If the new board has a part group <em>not</em> in the config, it keeps its auto-guessed defaults.</li>
           <li>If the config has entries for parts <em>not</em> on the new board, they're listed as "unused" in the summary.</li>
         </ul>
-        <p>Settings saved per group: feeder, nozzle, tape pitch, height, rotation offset, speed, vision flag, skip flag. <em>Not</em> saved: placement coordinates (those are board-specific).</p>
+        <p>Settings saved per part type: feeder, nozzle, tape pitch, height, speed, vision flag, skip flag. <em>Not</em> saved: per-placement coordinates and rotations (those are board-specific).</p>
 
         <h4>Workflow suggestion</h4>
-        <p>Tune feeder assignments carefully on your first board (especially the per-part rotation offsets — those only need to be discovered once per reel). Save the config. On every subsequent board, load the config first and tweak only the new parts.</p>
+        <p>Tune feeder assignments carefully on your first board. Save the config. On every subsequent board, load the config first and tweak only the new parts. Per-placement rotation tweaks (for reel-vs-footprint orientation fixes) can be applied directly on Step 2 — but those are placement-specific, so if every R1/R2/R3 of a reel needs the same +90° fix, set it once in your CAD library footprint instead so it comes through correctly from the .mnt.</p>
 
         <h3 id="h-troubleshoot">Troubleshooting</h3>
 
@@ -983,7 +1050,11 @@ footer{
         </ul>
 
         <h4>Rotations are off by 90° or 180° on certain parts</h4>
-        <p>Almost always a reel-vs-footprint orientation mismatch. Place a single test part to find the right offset (90 / 180 / -90), then set that as the per-feeder rotation offset for that part group. Save the config so it's permanent.</p>
+        <p>Almost always a reel-vs-footprint orientation mismatch. Two ways to fix:</p>
+        <ul>
+          <li><b>Best (permanent):</b> fix the footprint in your CAD library so future boards come through correctly.</li>
+          <li><b>Quick (per-board):</b> sort the table by Value or Package, edit the Rotation column on each affected row to add 90 / 180 / -90 as needed. Tedious for many placements, fine for a few.</li>
+        </ul>
 
         <h4>The machine reports placements off the board</h4>
         <p>Usually a coordinate origin issue. Check Step 3's X/Y offset. If your Fusion file uses board-center origin, the offset should be about <em>(half board width, half board height)</em>.</p>
@@ -997,7 +1068,7 @@ footer{
           <li><b>Tab</b> moves between input fields in the feeder table — useful for quick keyboard entry of feeder IDs down a column.</li>
           <li><b>Click "Load demo data"</b> on Step 1 to walk through the workflow without your own file.</li>
           <li><b>Sort by Package</b> on Step 2 to group similar parts together — useful when you want to see all your 0402s as one block to spot inconsistencies in tape pitch or nozzle.</li>
-          <li><b>The undo banner times out after 12 seconds</b>, but the "Restore last delete" button works at any time. The undo stack holds up to 50 operations.</li>
+          <li><b>Pagination:</b> the table shows 20 rows per page. Sorting always jumps to page 1 so the top of the new ordering is visible.</li>
           <li><b>Esc closes this help panel.</b></li>
         </ul>
 
@@ -1049,7 +1120,9 @@ const S = {
   units: "mm",
   sideFilter: "top",
   dnp: "yes",
-  parts: [],        // filtered, normalized, in mm: {ref,val,pkg,x,y,rot,side,dnp}
+  parts: [],        // filtered, normalized, in mm: {ref,val,pkg,x,y,rot,side,dnp,skip}
+  uniqueParts: [],  // [{val, pkg, count, key}] — populated for Step 2 mapping table
+  feederMap: new Map(),  // key (val|pkg lowercased) → {feeder, nozzle} — defaults for Step 3
   groups: [],       // {key,value,package,refs:[],settings:{...}}
   board: {offX:0,offY:0,rotOff:0,fid:{ulX:0,ulY:0,lrX:0,lrY:0,llX:0,llY:0},dpvName:"board.dpv"},
   dpv: ""
@@ -1233,12 +1306,14 @@ document.getElementById('toStep2').addEventListener('click', ()=>{
       alert(msg);
       return;
     }
-    buildGroups();
-    renderGroups();
-    renderStatbar();
+    // Build the unique-types list for the Feeder Mapping screen.
+    // Don't reset S.feederMap — preserve any mappings the user already set
+    // (or that came from a Load Config) across re-entry to Step 1.
+    buildUniquePartTypes();
+    renderMappingTable();
     gotoStep(2);
   } catch(err){
-    alert("Error advancing to feeder assignment:\n\n" + (err && err.stack ? err.stack : err));
+    alert("Error advancing to feeder mapping:\n\n" + (err && err.stack ? err.stack : err));
     console.error(err);
   }
 });
@@ -1271,20 +1346,27 @@ function parseMnt(text){
     let rest = m[5].trim();
     // Verify x/y/rot are numeric — if not, this is probably a header/comment line
     if(!isFinite(parseFloat(x)) || !isFinite(parseFloat(y)) || !isFinite(parseFloat(rot))) continue;
-    // Split rest into value and package: prefer 2+ spaces; fallback to last token
+    // Split rest into value and package. Cases handled, in priority order:
+    //   1. Tab(s) anywhere    → split on the first tab
+    //   2. 2+ consecutive whitespace gap (column-aligned) → split there
+    //   3. Single space, multiple words → split on the LAST space
+    //      (assumes Package is a single token, Value may contain spaces)
+    //   4. Only one token → call it package, value empty
     let val = "", pkg = "";
-    const splitIdx = rest.search(/\s{2,}/);
-    if(splitIdx >= 0){
-      val = rest.slice(0, splitIdx).trim();
-      pkg = rest.slice(splitIdx).trim();
+    const tabIdx = rest.indexOf('\t');
+    const wideIdx = rest.search(/\s{2,}/);
+    if(tabIdx >= 0){
+      val = rest.slice(0, tabIdx).trim();
+      pkg = rest.slice(tabIdx).trim();
+    } else if(wideIdx >= 0){
+      val = rest.slice(0, wideIdx).trim();
+      pkg = rest.slice(wideIdx).trim();
     } else {
-      // Single space — split on last space (package is one token, value may have spaces)
       const li = rest.lastIndexOf(' ');
       if(li > 0){
         val = rest.slice(0, li).trim();
         pkg = rest.slice(li+1).trim();
       } else {
-        // Only one token left → call it package, no value
         pkg = rest;
       }
     }
@@ -1533,7 +1615,8 @@ function buildParts(){
       x: toMM(xRaw),
       y: toMM(yRaw),
       rot: isFinite(rot) ? rot : 0,
-      top, dnp
+      top, dnp,
+      skip: false       // per-placement skip flag (independent of part type)
     });
   }
 }
@@ -1541,11 +1624,173 @@ function buildParts(){
 /* ============================================================
    GROUP PARTS — by value+package
 ============================================================ */
+/* ============================================================
+   FEEDER MAPPING (Step 2)
+   Build the unique-types list from S.parts and render a small table where
+   the user can set a Feeder ID and Nozzle for each Value+Package pair.
+   Mapping inputs save into S.feederMap; buildGroups() reads them on Step 3.
+============================================================ */
+
+function buildUniquePartTypes(){
+  const seen = new Map();   // key → {val, pkg, count, key}
+  for(const p of S.parts){
+    const k = configKey(p.val, p.pkg);
+    if(!seen.has(k)){
+      seen.set(k, {val: p.val || '', pkg: p.pkg || '', count: 0, key: k});
+    }
+    seen.get(k).count++;
+  }
+  // Sort by Value (numeric-aware), then Package
+  S.uniqueParts = Array.from(seen.values()).sort((a,b) => {
+    const cv = (a.val || '').localeCompare(b.val || '', undefined, {sensitivity:'base', numeric:true});
+    if(cv) return cv;
+    return (a.pkg || '').localeCompare(b.pkg || '', undefined, {sensitivity:'base', numeric:true});
+  });
+}
+
+function renderMappingTable(){
+  const tb = document.getElementById('mapBody');
+  if(!tb) return;
+  tb.innerHTML = '';
+  const stats = document.getElementById('mapStats');
+
+  let mappedCount = 0;
+  S.uniqueParts.forEach((u, i) => {
+    const tr = document.createElement('tr');
+    const m = S.feederMap.get(u.key);
+    const feederVal = (m && typeof m.feeder === 'number' && isFinite(m.feeder)) ? m.feeder : '';
+    const nozzleVal = (m && (m.nozzle === 1 || m.nozzle === 2)) ? m.nozzle : 0;
+    if(feederVal !== '' || nozzleVal !== 0) mappedCount++;
+    tr.innerHTML = `
+      <td class="col-num">${i+1}</td>
+      <td class="col-mut" title="${escapeHtml(u.val)}">${escapeHtml(u.val || '—')}</td>
+      <td class="col-pkg" title="${escapeHtml(u.pkg)}">${escapeHtml(u.pkg || '—')}</td>
+      <td><span class="cnt-pill">${u.count}</span></td>
+      <td><input type="number" class="tight" min="1" max="99" placeholder="—" value="${feederVal}" data-mk="${escapeAttr(u.key)}" data-mf="feeder"></td>
+      <td>
+        <div class="nz-toggle" data-mk="${escapeAttr(u.key)}">
+          <button type="button" data-nz="0" class="${nozzleVal===0?'on':''}" title="No nozzle preference (auto-guess)">—</button>
+          <button type="button" data-nz="1" class="${nozzleVal===1?'on':''}" title="Nozzle 1 (left) — small parts">N1</button>
+          <button type="button" data-nz="2" class="${nozzleVal===2?'on':''}" title="Nozzle 2 (right) — larger parts">N2</button>
+        </div>
+      </td>
+    `;
+    tb.appendChild(tr);
+  });
+
+  if(stats){
+    stats.textContent = `${S.uniqueParts.length} unique part type${S.uniqueParts.length===1?'':'s'} · ${mappedCount} mapped`;
+  }
+
+  // Wire up Feeder ID inputs
+  tb.querySelectorAll('input[data-mk][data-mf="feeder"]').forEach(el => {
+    const commit = e => {
+      const k = e.target.dataset.mk;
+      const v = e.target.value.trim();
+      let entry = S.feederMap.get(k) || {};
+      if(v === ''){
+        delete entry.feeder;
+      } else {
+        const n = parseInt(v, 10);
+        if(isFinite(n) && n >= 1 && n <= 99){
+          entry.feeder = n;
+        } else {
+          delete entry.feeder;
+        }
+      }
+      // Drop the entry if it now has no fields set
+      if(entry.feeder === undefined && entry.nozzle === undefined){
+        S.feederMap.delete(k);
+      } else {
+        S.feederMap.set(k, entry);
+      }
+      updateMapStats();
+    };
+    el.addEventListener('change', commit);
+    el.addEventListener('input', commit);
+  });
+
+  // Wire up Nozzle toggle (3 states: blank/N1/N2)
+  tb.querySelectorAll('.nz-toggle button[data-nz]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const wrap = e.currentTarget.parentElement;
+      const k = wrap.dataset.mk;
+      const nz = +e.currentTarget.dataset.nz;  // 0, 1, or 2
+      let entry = S.feederMap.get(k) || {};
+      if(nz === 0){
+        delete entry.nozzle;
+      } else {
+        entry.nozzle = nz;
+      }
+      if(entry.feeder === undefined && entry.nozzle === undefined){
+        S.feederMap.delete(k);
+      } else {
+        S.feederMap.set(k, entry);
+      }
+      // Update visual state across this row's toggle
+      wrap.querySelectorAll('button').forEach(b =>
+        b.classList.toggle('on', +b.dataset.nz === nz));
+      updateMapStats();
+    });
+  });
+}
+
+function updateMapStats(){
+  const stats = document.getElementById('mapStats');
+  if(!stats) return;
+  stats.textContent = `${S.uniqueParts.length} unique part type${S.uniqueParts.length===1?'':'s'} · ${S.feederMap.size} mapped`;
+}
+
+// Clear all button
+(function wireClearMappings(){
+  const btn = document.getElementById('clearMappings');
+  if(!btn) return;
+  btn.addEventListener('click', () => {
+    if(S.feederMap.size === 0) return;
+    if(!confirm(`Clear all ${S.feederMap.size} feeder mapping${S.feederMap.size===1?'':'s'}?`)) return;
+    S.feederMap.clear();
+    renderMappingTable();
+  });
+})();
+
+// Step 2 → Step 3 (build groups using mapping, then go to Assign Feeders)
+document.getElementById('toStep3').addEventListener('click', () => {
+  buildGroups();
+  applySort();
+  renderRows();
+  renderStatbar();
+  gotoStep(3);
+});
+
+// Quick "Step 2 (Feeder Mapping)" link in Step 3's hint
+document.getElementById('backToMapping').addEventListener('click', e => {
+  e.preventDefault();
+  gotoStep(2);
+});
+
 function buildGroups(){
   const map = new Map();
-  let id = 1;
   const haveVal = S.parts.some(p => p.val);
   const havePkg = S.parts.some(p => p.pkg);
+
+  // First pass: collect every feeder ID claimed by an explicit mapping so the
+  // sequential auto-assign for unmapped groups can avoid those IDs and we don't
+  // create avoidable collisions.
+  const claimedFeeders = new Set();
+  for(const [, m] of S.feederMap){
+    if(typeof m.feeder === 'number' && isFinite(m.feeder)) claimedFeeders.add(m.feeder);
+  }
+
+  // Sequential ID counter that skips any ID already claimed by a mapping
+  let nextId = 1;
+  function nextFreeId(){
+    while(claimedFeeders.has(nextId) && nextId < 99) nextId++;
+    const id = nextId;
+    claimedFeeders.add(id);   // reserve so two unmapped groups don't collide either
+    nextId++;
+    return id;
+  }
+
   for(const p of S.parts){
     let key;
     if(haveVal || havePkg){
@@ -1558,22 +1803,33 @@ function buildGroups(){
     }
     if(!map.has(key)){
       const fr = guessFeedRate(p.pkg);
-      const nz = guessNozzle(p.pkg);
+      const guessedNozzle = guessNozzle(p.pkg);
+      // If the user mapped this Value+Package on Step 2, use those values as
+      // the defaults instead of the auto-guess.
+      const mapKey = configKey(p.val, p.pkg);
+      const mapped = S.feederMap.get(mapKey);
+      const feeder =
+        (mapped && typeof mapped.feeder === 'number' && isFinite(mapped.feeder))
+          ? mapped.feeder
+          : nextFreeId();
+      const nozzle =
+        (mapped && (mapped.nozzle === 1 || mapped.nozzle === 2))
+          ? mapped.nozzle
+          : guessedNozzle;
       map.set(key,{
-        id: id++,
+        id: map.size + 1,
         key,
-        value: p.val || (haveVal||havePkg ? "" : p.ref),  // when no val/pkg, show ref as identity
+        value: p.val || (haveVal||havePkg ? "" : p.ref),
         package: p.pkg,
         refs:[],
         settings:{
-          feeder: id-1,
-          nozzle: nz,
+          feeder,
+          nozzle,
           feedRate: fr,
           height: 0.5,
           rotOffset: 0,
           speed: 0,
           vision: true,
-          skip: false,
           note: ""
         }
       });
@@ -1582,8 +1838,12 @@ function buildGroups(){
   }
   S.groups = Array.from(map.values());
   // Reset sort state for the new dataset and snapshot the insertion order
+  // (both for groups and for the per-placement view).
   S.sort = {key: null, dir: 0};
+  S.page = 1;
   S.groupsOriginalOrder = S.groups.slice();
+  S.partsOriginalOrder = S.parts.slice();
+  S.originalPartCount = S.parts.length;
 }
 
 function guessFeedRate(pkg){
@@ -1608,75 +1868,39 @@ function guessNozzle(pkg){
 }
 
 /* ============================================================
-   STEP 3: RENDER GROUPS TABLE (with inline editing)
-   - Each group is a row with a × Remove button.
-   - RefDes column shows clickable pills; clicking the inline × on a pill
-     drops just that one placement, leaving the rest of the group intact.
-   - "Remove all skipped" button bulk-deletes any group with skip=true.
-   - All deletes go onto an undo stack so accidental clicks aren't fatal.
+   STEP 3: PER-PLACEMENT FEEDER TABLE
+   - One row per part on the board (S.parts).
+   - X, Y, Rotation are stored on each part — editing those mutates S.parts[i].
+   - Feeder, Nozzle, Tape pitch, Height, Speed, Vision, Skip are stored on
+     the GROUP (S.groups[]) — editing them on one row updates every row of
+     that part type, with sibling inputs visually synced.
+   - Table is paged at 20 rows/page; sort applies to the full dataset, then
+     we slice for display.
 ============================================================ */
 
-// Undo stack: each entry describes a single delete operation that can be reverted.
-//   {kind: "group", index, group}                    — a group was removed
-//   {kind: "groups", entries:[{index, group}, ...]}  — bulk: many groups
-//   {kind: "ref", groupKey, ref}                     — a single refdes within a group
-S.undoStack = [];
-
-function pushUndo(entry, label){
-  S.undoStack.push(entry);
-  // Keep stack bounded
-  if(S.undoStack.length > 50) S.undoStack.shift();
-  showUndoBanner(label);
-}
-
-let undoTimer = null;
-function showUndoBanner(msg){
+// Lightweight toast helper — used by Save Config to show "Saved …" briefly.
+// Reuses the banner element that previously hosted the undo button.
+let toastTimer = null;
+function showUndoBanner(msg){          // kept name for backwards compat
   const banner = document.getElementById('undoBanner');
   document.getElementById('undoMsg').textContent = msg;
   banner.classList.remove('hidden');
-  if(undoTimer) clearTimeout(undoTimer);
-  undoTimer = setTimeout(() => banner.classList.add('hidden'), 12000);
-}
-
-function performUndo(){
-  const entry = S.undoStack.pop();
-  if(!entry) return;
-  if(entry.kind === "group"){
-    S.groups.splice(entry.index, 0, entry.group);
-  } else if(entry.kind === "groups"){
-    // Re-insert in original order
-    for(const e of entry.entries) S.groups.splice(e.index, 0, e.group);
-  } else if(entry.kind === "ref"){
-    const g = S.groups.find(x => x.key === entry.groupKey);
-    if(g){
-      g.refs.splice(entry.refIndex, 0, entry.ref);
-    } else {
-      // Group itself was removed too — re-add the group with this ref alone (rare path)
-      S.groups.push(entry.fallbackGroup);
-    }
-  }
-  // After undo the original-order snapshot should reflect current set
-  S.groupsOriginalOrder = S.groups.slice();
-  applySort();
-  renderGroups();
-  renderStatbar();
-  document.getElementById('undoBanner').classList.add('hidden');
+  if(toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => banner.classList.add('hidden'), 4000);
 }
 
 /* ============================================================
-   SORTING
-   Sort affects display order only. The DPV generator iterates
-   S.groups in order, so the table sort *does* control the order
-   in which the machine sees the placements — which is fine and
-   what users expect (sort, then export).
+   SORTING + ORIGINAL-ORDER SNAPSHOTS
 ============================================================ */
-// After mutations, prune deleted groups out of the original-order snapshot
-// so an "unsort" returns to the right relative order without resurrecting
-// removed groups.
 function syncOriginalOrder(){
-  if(!S.groupsOriginalOrder) return;
-  const present = new Set(S.groups);
-  S.groupsOriginalOrder = S.groupsOriginalOrder.filter(g => present.has(g));
+  if(S.groupsOriginalOrder){
+    const presentG = new Set(S.groups);
+    S.groupsOriginalOrder = S.groupsOriginalOrder.filter(g => presentG.has(g));
+  }
+  if(S.partsOriginalOrder){
+    const presentP = new Set(S.parts);
+    S.partsOriginalOrder = S.partsOriginalOrder.filter(p => presentP.has(p));
+  }
 }
 
 S.sort = {key: null, dir: 1};   // dir: 1 = asc, -1 = desc, 0 = unsorted
@@ -1702,31 +1926,50 @@ function refDesNaturalCompare(a, b){
   return (ma[3]||"").localeCompare(mb[3]||"", undefined, {sensitivity:'base'});
 }
 
+// Returns true if this individual placement is marked Skip.
+// Skip is per-placement: tick the box on R1 and R2 stays placed.
+function isPartSkipped(p){
+  return !!p.skip;
+}
+
 function applySort(){
-  if(!S.sort.key || S.sort.dir === 0){
-    if(S.groupsOriginalOrder) S.groups = S.groupsOriginalOrder.slice();
-    return;
+  // Always partition: skipped rows go to the end of the table, in their own
+  // insertion-order block. Non-skipped rows occupy the front of the table,
+  // either in insertion order (if no sort applied) or sorted by the user's
+  // chosen column.
+  //
+  // We rebuild S.parts from the original-order snapshot so multiple passes
+  // are stable (e.g., toggling skip then re-sorting doesn't accumulate
+  // ordering mistakes).
+  if(!S.partsOriginalOrder) S.partsOriginalOrder = S.parts.slice();
+
+  const nonSkipped = [];
+  const skipped = [];
+  for(const p of S.partsOriginalOrder){
+    // Skip parts whose data has been removed since the snapshot was taken
+    if(!S.parts.includes(p)) continue;
+    if(isPartSkipped(p)) skipped.push(p);
+    else nonSkipped.push(p);
   }
-  const dir = S.sort.dir;
-  const key = S.sort.key;
-  S.groups.sort((a, b) => {
-    let av, bv, cmp;
-    if(key === "ref"){
-      // Sort by the FIRST refdes of each group (using natural ordering)
-      av = (a.refs && a.refs[0]) || "";
-      bv = (b.refs && b.refs[0]) || "";
-      cmp = refDesNaturalCompare(av, bv);
-    } else if(key === "value"){
-      av = (a.value || "").toString();
-      bv = (b.value || "").toString();
-      cmp = av.localeCompare(bv, undefined, {sensitivity:'base', numeric:true});
-    } else if(key === "package"){
-      av = (a.package || "").toString();
-      bv = (b.package || "").toString();
-      cmp = av.localeCompare(bv, undefined, {sensitivity:'base', numeric:true});
-    }
-    return cmp * dir;
-  });
+
+  // Apply user sort to non-skipped only
+  if(S.sort.key && S.sort.dir !== 0){
+    const dir = S.sort.dir;
+    const key = S.sort.key;
+    nonSkipped.sort((a, b) => {
+      let cmp = 0;
+      if(key === "ref"){
+        cmp = refDesNaturalCompare(a.ref, b.ref);
+      } else if(key === "value"){
+        cmp = (a.val || "").localeCompare(b.val || "", undefined, {sensitivity:'base', numeric:true});
+      } else if(key === "package"){
+        cmp = (a.pkg || "").localeCompare(b.pkg || "", undefined, {sensitivity:'base', numeric:true});
+      }
+      return cmp * dir;
+    });
+  }
+
+  S.parts = nonSkipped.concat(skipped);
 }
 
 function toggleSort(key){
@@ -1740,8 +1983,9 @@ function toggleSort(key){
     S.sort.key = null;
     S.sort.dir = 0;
   }
+  S.page = 1;            // a fresh sort means "show me from the start"
   applySort();
-  renderGroups();
+  renderRows();
 }
 
 function renderSortIndicators(){
@@ -1754,191 +1998,276 @@ function renderSortIndicators(){
 }
 
 function renderStatbar(){
-  const used = S.groups.filter(g=>!g.settings.skip);
-  // Recompute placements from current group refs (may shrink after removals)
-  const placements = S.groups.reduce((a,g)=>a+g.refs.length, 0);
-  const skipped = S.groups.filter(g=>g.settings.skip).reduce((a,g)=>a+g.refs.length,0);
-  const removed = (S.parts ? S.parts.length : 0) - placements;
+  // Count active part types and used feeders based on parts (not group flags).
+  // A group is "used" if at least one of its placements is not skipped.
+  const placements = S.parts.length;
+  const skippedPlacements = S.parts.filter(p => p.skip).length;
+  const activeGroupKeys = new Set();
+  const usedFeeders = new Set();
+  for(const p of S.parts){
+    const g = findGroupForPart(p);
+    if(!g) continue;
+    activeGroupKeys.add(g.key);
+    if(!p.skip) usedFeeders.add(g.settings.feeder);
+  }
+  const removed = (S.originalPartCount || 0) - placements;
   document.getElementById('statbar').innerHTML = `
     <div class="stat"><div class="lbl">Placements</div><div class="val amber">${placements}</div></div>
-    <div class="stat"><div class="lbl">Unique Parts</div><div class="val">${S.groups.length}</div></div>
-    <div class="stat"><div class="lbl">Feeders Used</div><div class="val cyan">${used.length}</div></div>
-    <div class="stat"><div class="lbl">${removed > 0 ? 'Removed' : 'Skipped Parts'}</div><div class="val">${removed > 0 ? removed : skipped}</div></div>
+    <div class="stat"><div class="lbl">Part Types</div><div class="val">${activeGroupKeys.size}</div></div>
+    <div class="stat"><div class="lbl">Feeders Used</div><div class="val cyan">${usedFeeders.size}</div></div>
+    <div class="stat"><div class="lbl">${removed > 0 ? 'Removed' : 'Skipped'}</div><div class="val">${removed > 0 ? removed : skippedPlacements}</div></div>
   `;
 }
 
-function renderGroups(){
-  const tb = document.getElementById('grpBody');
-  tb.innerHTML = "";
-  S.groups.forEach((g,i)=>{
-    const tr = document.createElement('tr');
-    if(g.settings.skip) tr.classList.add('skipped');
-    const refsHtml = renderRefdesCell(g, i);
-    tr.innerHTML = `
-      <td class="col-num">${i+1}</td>
-      <td class="col-mut" title="${escapeHtml(g.value || '')}">${escapeHtml(g.value || '—')}</td>
-      <td class="col-pkg" title="${escapeHtml(g.package || '')}">${escapeHtml(g.package || '—')}</td>
-      <td><span class="cnt-pill" data-count="${i}">${g.refs.length}</span></td>
-      <td><input type="number" class="tight" min="1" max="99" value="${g.settings.feeder}" data-g="${i}" data-f="feeder"></td>
-      <td>
-        <div class="nz-toggle" data-g="${i}">
-          <button type="button" data-nz="1" class="${g.settings.nozzle===1?'on':''}" title="Nozzle 1 (left) — better for small parts (0201/0402/0603)">N1</button>
-          <button type="button" data-nz="2" class="${g.settings.nozzle===2?'on':''}" title="Nozzle 2 (right) — better for larger parts (SOIC/QFP/QFN)">N2</button>
-        </div>
-      </td>
-      <td><input type="number" class="small" min="0" step="2" value="${g.settings.feedRate}" data-g="${i}" data-f="feedRate"></td>
-      <td><input type="number" class="small" step="0.1" value="${g.settings.height}" data-g="${i}" data-f="height"></td>
-      <td><input type="number" class="small" step="1" value="${g.settings.rotOffset}" data-g="${i}" data-f="rotOffset"></td>
-      <td><input type="number" class="small" min="0" max="100" step="5" value="${g.settings.speed}" data-g="${i}" data-f="speed"></td>
-      <td class="always-on"><label class="chk"><input type="checkbox" ${g.settings.vision?'checked':''} data-g="${i}" data-f="vision"><span class="box"></span></label></td>
-      <td class="always-on"><label class="chk"><input type="checkbox" ${g.settings.skip?'checked':''} data-g="${i}" data-f="skip"><span class="box"></span></label></td>
-      <td class="col-refs always-on">${refsHtml}</td>
-      <td class="always-on" style="text-align:center"><button class="x-btn" data-rm="${i}" title="Remove this part group">×</button></td>
-    `;
-    tb.appendChild(tr);
-  });
-
-  // wire input handlers
-  tb.querySelectorAll('input,select').forEach(el=>{
-    if(el.dataset.f === undefined) return;
-    el.addEventListener('change', e=>{
-      const i = +e.target.dataset.g;
-      const f = e.target.dataset.f;
-      const g = S.groups[i];
-      if(e.target.type === 'checkbox') g.settings[f] = e.target.checked;
-      else if(e.target.tagName === 'SELECT') g.settings[f] = (f==='nozzle') ? +e.target.value : e.target.value;
-      else g.settings[f] = parseFloat(e.target.value);
-      if(f === 'skip'){
-        const tr = e.target.closest('tr');
-        tr.classList.toggle('skipped', g.settings.skip);
-      }
-      renderStatbar();
-    });
-  });
-
-  // wire nozzle toggle buttons (replacement for the old <select>)
-  tb.querySelectorAll('.nz-toggle button[data-nz]').forEach(btn=>{
-    btn.addEventListener('click', e=>{
-      const wrap = e.currentTarget.parentElement;
-      const i = +wrap.dataset.g;
-      const nz = +e.currentTarget.dataset.nz;
-      S.groups[i].settings.nozzle = nz;
-      // Update visual state without re-rendering the whole table
-      wrap.querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.nz === nz));
-    });
-  });
-
-  // wire group-level remove buttons
-  tb.querySelectorAll('button.x-btn[data-rm]').forEach(btn=>{
-    btn.addEventListener('click', e=>{
-      const i = +e.currentTarget.dataset.rm;
-      const g = S.groups[i];
-      const refsTxt = g.refs.length > 4
-        ? `${g.refs.slice(0,4).join(", ")} … (+${g.refs.length-4} more)`
-        : g.refs.join(", ");
-      const label = g.value || g.package || '(unnamed)';
-      // Animate row out, then mutate state and re-render
-      const tr = e.currentTarget.closest('tr');
-      tr.classList.add('removing');
-      setTimeout(()=>{
-        const removed = S.groups.splice(i, 1)[0];
-        syncOriginalOrder();
-        pushUndo({kind:"group", index:i, group:removed},
-                 `Removed ${label} (${removed.refs.length} placement${removed.refs.length===1?'':'s'}: ${refsTxt})`);
-        renderGroups();
-        renderStatbar();
-      }, 180);
-    });
-  });
-
-  // wire individual refdes pill drops
-  tb.querySelectorAll('.refdes-pill .drop-x').forEach(x=>{
-    x.addEventListener('click', e=>{
-      e.stopPropagation();
-      const groupIdx = +e.currentTarget.dataset.g;
-      const refIdx = +e.currentTarget.dataset.r;
-      const g = S.groups[groupIdx]; if(!g) return;
-      const ref = g.refs[refIdx];
-      if(g.refs.length === 1){
-        // Removing the last ref of a group → remove the whole group instead
-        const removed = S.groups.splice(groupIdx, 1)[0];
-        syncOriginalOrder();
-        pushUndo({kind:"group", index:groupIdx, group:removed},
-                 `Removed ${ref} (last placement in ${g.value||g.package||'group'})`);
-      } else {
-        g.refs.splice(refIdx, 1);
-        pushUndo({kind:"ref", groupKey:g.key, refIndex:refIdx, ref, fallbackGroup:g},
-                 `Removed placement ${ref}`);
-      }
-      renderGroups();
-      renderStatbar();
-    });
-  });
-
-  // wire "show all refdes" expansion
-  tb.querySelectorAll('.refdes-more').forEach(m=>{
-    m.addEventListener('click', e=>{
-      const i = +e.currentTarget.dataset.g;
-      S.groups[i]._expanded = true;
-      renderGroups();
-    });
-  });
-
-  renderSortIndicators();
+// Look up the group that a part belongs to, by Value+Package key match.
+function findGroupForPart(p){
+  const key = (p.val||"_") + "|" + (p.pkg||"_");
+  return S.groups.find(g => g.key === key) || null;
 }
 
-// Wire up sort headers once at startup
+/* ============================================================
+   PER-PLACEMENT TABLE RENDERER
+   - One row per part in S.parts (after sort).
+   - X, Y, Rotation are stored on the part — editing those rows mutates
+     S.parts[i] directly.
+   - Feeder, Nozzle, Tape pitch, Height, Speed, Vision, Skip are stored
+     on the GROUP (S.groups[]) and shared across all placements of the
+     same Value+Package. Editing them in one row updates state for every
+     row in that group; we re-render to reflect the change everywhere.
+   - Subtle group banding: rows of the same group get a slight tint so
+     consecutive same-type rows are visually clustered.
+============================================================ */
+const PAGE_SIZE = 20;
+
+// Clamp the current page to a valid range given S.parts.length
+function clampPage(){
+  const total = S.parts.length;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if(!S.page || S.page < 1) S.page = 1;
+  if(S.page > pages) S.page = pages;
+  return pages;
+}
+
+function renderPager(){
+  const total = S.parts.length;
+  const pages = clampPage();
+  const start = (S.page - 1) * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, total);
+  const info = document.getElementById('pageInfo');
+  if(!info) return;
+  if(total === 0){
+    info.innerHTML = `No placements`;
+  } else {
+    info.innerHTML = `Page <b>${S.page}</b> of <b>${pages}</b>  ·  rows <b>${start+1}</b>–<b>${end}</b> of <b>${total}</b>`;
+  }
+  document.getElementById('pagePrev').disabled = (S.page <= 1);
+  document.getElementById('pageNext').disabled = (S.page >= pages);
+  const jump = document.getElementById('pageJump');
+  jump.max = pages;
+  if(document.activeElement !== jump) jump.value = S.page;
+}
+
+function renderRows(){
+  const tb = document.getElementById('grpBody');
+  tb.innerHTML = "";
+
+  // Pagination: clamp current page, then slice
+  clampPage();
+  const start = (S.page - 1) * PAGE_SIZE;
+  const end   = Math.min(start + PAGE_SIZE, S.parts.length);
+
+  // Assign a stable band index to each group across the FULL dataset (not just
+  // the current page) so that bands stay consistent as you flip pages.
+  const bandByGroupKey = new Map();
+  let bandIdx = 0;
+  for(const p of S.parts){
+    const g = findGroupForPart(p);
+    if(!g) continue;
+    if(!bandByGroupKey.has(g.key)){
+      bandByGroupKey.set(g.key, bandIdx++);
+    }
+  }
+
+  for(let pi = start; pi < end; pi++){
+    const p = S.parts[pi];
+    const g = findGroupForPart(p);
+    if(!g) continue;
+    const tr = document.createElement('tr');
+    tr.dataset.pi = pi;          // global index into S.parts
+    tr.dataset.gkey = g.key;
+    if(p.skip) tr.classList.add('skipped');
+    const band = bandByGroupKey.get(g.key) % 2;
+    tr.classList.add(band === 0 ? 'band-a' : 'band-b');
+
+    tr.innerHTML = `
+      <td class="col-num">${pi+1}</td>
+      <td class="col-ref">${escapeHtml(p.ref)}</td>
+      <td class="col-mut" title="${escapeHtml(p.val || '')}">${escapeHtml(p.val || '—')}</td>
+      <td class="col-pkg" title="${escapeHtml(p.pkg || '')}">${escapeHtml(p.pkg || '—')}</td>
+      <td><input type="number" class="coord" step="0.01" value="${fmtCoord(p.x)}" data-pi="${pi}" data-pf="x"></td>
+      <td><input type="number" class="coord" step="0.01" value="${fmtCoord(p.y)}" data-pi="${pi}" data-pf="y"></td>
+      <td><input type="number" class="coord" step="1" value="${fmtCoord(p.rot)}" data-pi="${pi}" data-pf="rot"></td>
+      <td><input type="number" class="tight" min="1" max="99" value="${g.settings.feeder}" data-gkey="${escapeAttr(g.key)}" data-f="feeder"></td>
+      <td>
+        <div class="nz-toggle" data-gkey="${escapeAttr(g.key)}">
+          <button type="button" data-nz="1" class="${g.settings.nozzle===1?'on':''}" title="Nozzle 1 (left) — small parts">N1</button>
+          <button type="button" data-nz="2" class="${g.settings.nozzle===2?'on':''}" title="Nozzle 2 (right) — larger parts">N2</button>
+        </div>
+      </td>
+      <td><input type="number" class="small" min="0" step="2" value="${g.settings.feedRate}" data-gkey="${escapeAttr(g.key)}" data-f="feedRate"></td>
+      <td><input type="number" class="small" step="0.1" value="${g.settings.height}" data-gkey="${escapeAttr(g.key)}" data-f="height"></td>
+      <td><input type="number" class="small" min="0" max="100" step="5" value="${g.settings.speed}" data-gkey="${escapeAttr(g.key)}" data-f="speed"></td>
+      <td class="always-on"><label class="chk"><input type="checkbox" ${g.settings.vision?'checked':''} data-gkey="${escapeAttr(g.key)}" data-f="vision"><span class="box"></span></label></td>
+      <td class="always-on"><label class="chk"><input type="checkbox" ${p.skip?'checked':''} data-pi="${pi}" data-pf="skip"><span class="box"></span></label></td>
+    `;
+    tb.appendChild(tr);
+  }
+
+  wireRowHandlers(tb);
+  renderSortIndicators();
+  renderPager();
+}
+
+// Backwards-compat alias so older callers still work
+function renderGroups(){ renderRows(); }
+
+function fmtCoord(n){
+  if(!isFinite(n)) return "0";
+  return (Math.round(n*100)/100).toString();
+}
+
+function escapeAttr(s){
+  return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function wireRowHandlers(tb){
+  /* Group-level inputs (feeder, nozzle, pitch, height, speed, vision, skip)
+     identified by data-gkey. Edits propagate to every row of that group. */
+  tb.querySelectorAll('input[data-gkey], select[data-gkey]').forEach(el => {
+    if(el.dataset.f === undefined) return;
+    const commit = e => {
+      const gkey = e.target.dataset.gkey;
+      const f = e.target.dataset.f;
+      const g = S.groups.find(x => x.key === gkey);
+      if(!g) return;
+      if(e.target.type === 'checkbox') g.settings[f] = e.target.checked;
+      else {
+        const v = parseFloat(e.target.value);
+        if(isFinite(v)) g.settings[f] = v;
+        else if(e.target.value === '' || e.target.value === '-') g.settings[f] = 0;
+      }
+      // Group-level edits affect every row of this group. For numeric fields,
+      // update the OTHER rows' inputs to match — don't full re-render so the
+      // active input keeps focus. Vision (checkbox) needs no extra work since
+      // each row's checkbox is already independent and the model is updated.
+      if(e.target.type !== 'checkbox'){
+        tb.querySelectorAll(`input[data-gkey="${cssEscape(gkey)}"][data-f="${f}"]`).forEach(input => {
+          if(input !== e.target && parseFloat(input.value) !== g.settings[f]){
+            input.value = g.settings[f];
+          }
+        });
+      }
+      renderStatbar();
+    };
+    el.addEventListener('change', commit);
+    el.addEventListener('input', commit);
+  });
+
+  /* Per-placement inputs (X, Y, Rotation, Skip) identified by data-pi + data-pf */
+  tb.querySelectorAll('input[data-pf]').forEach(el => {
+    const commit = e => {
+      const pi = +e.target.dataset.pi;
+      const pf = e.target.dataset.pf;   // 'x' | 'y' | 'rot' | 'skip'
+      const part = S.parts[pi];
+      if(!part) return;
+      if(e.target.type === 'checkbox'){
+        part[pf] = e.target.checked;
+        if(pf === 'skip'){
+          // Skip toggle moves this single placement to the tail; re-partition
+          // and re-render. The row may move to a different page.
+          applySort();
+          renderRows();
+          renderStatbar();
+        }
+      } else {
+        const v = parseFloat(e.target.value);
+        if(isFinite(v)) part[pf] = v;
+        else if(e.target.value === '' || e.target.value === '-') part[pf] = 0;
+      }
+    };
+    // Number inputs: listen on BOTH change and input so the value commits on
+    // every keystroke. Checkboxes: change only — listening for 'input' caused
+    // a real-browser bug where the input event fires AFTER renderRows() has
+    // re-keyed the data-pi attributes, so the handler reads a stale pi and
+    // ends up flipping the wrong part's skip flag.
+    el.addEventListener('change', commit);
+    if(el.type !== 'checkbox') el.addEventListener('input', commit);
+  });
+
+  /* Nozzle toggle (group-level via data-gkey) */
+  tb.querySelectorAll('.nz-toggle button[data-nz]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const wrap = e.currentTarget.parentElement;
+      const gkey = wrap.dataset.gkey;
+      const nz = +e.currentTarget.dataset.nz;
+      const g = S.groups.find(x => x.key === gkey);
+      if(!g) return;
+      g.settings.nozzle = nz;
+      // Update visual state across ALL nozzle toggles for this group
+      tb.querySelectorAll(`.nz-toggle[data-gkey="${cssEscape(gkey)}"] button`).forEach(b =>
+        b.classList.toggle('on', +b.dataset.nz === nz));
+    });
+  });
+
+  /* (Per-placement removal feature has been retired — the table is read-only
+     for placement structure; users edit X/Y/Rotation/feeder settings only.) */
+}
+
+// Helper: escape a string so it's safe to embed inside a CSS selector value.
+// Used for matching data-gkey="..." in querySelectorAll.
+function cssEscape(s){
+  if(window.CSS && CSS.escape) return CSS.escape(s);
+  return String(s).replace(/(["\\])/g, "\\$1");
+}
+
+// Wire up sort headers once at startup (works for both old and new sortable columns)
 document.querySelectorAll('#grpTable th.sortable').forEach(th => {
   th.addEventListener('click', e => {
-    if(!S.groupsOriginalOrder) captureOriginalOrder();
+    if(!S.partsOriginalOrder) capturePartsOriginalOrder();
     toggleSort(th.dataset.sort);
   });
 });
 
-function renderRefdesCell(g, i){
-  // Show pills for each refdes, with an inline × per pill.
-  // If many refs, collapse to first ~4 and show a "+N more" link.
-  const REF_LIMIT = 4;
-  const expanded = !!g._expanded;
-  const limit = expanded ? g.refs.length : Math.min(REF_LIMIT, g.refs.length);
-  const pills = [];
-  for(let r=0;r<limit;r++){
-    pills.push(
-      `<span class="refdes-pill">${escapeHtml(g.refs[r])}<span class="drop-x" data-g="${i}" data-r="${r}" title="Drop ${escapeHtml(g.refs[r])}">×</span></span>`
-    );
-  }
-  if(!expanded && g.refs.length > REF_LIMIT){
-    pills.push(`<span class="refdes-more" data-g="${i}">+${g.refs.length-REF_LIMIT} more…</span>`);
-  }
-  return `<div class="refdes-cell">${pills.join("")}</div>`;
+function capturePartsOriginalOrder(){
+  S.partsOriginalOrder = S.parts.slice();
 }
 
-// Bulk: remove all skipped groups in one shot
-document.getElementById('removeSkipped').addEventListener('click', ()=>{
-  const indices = [];
-  S.groups.forEach((g,i)=>{ if(g.settings.skip) indices.push(i); });
-  if(indices.length === 0){
-    showUndoBanner("Nothing skipped to remove.");
-    setTimeout(()=>document.getElementById('undoBanner').classList.add('hidden'), 2000);
-    return;
+/* Pagination handlers — Prev / Next / numeric jump */
+document.getElementById('pagePrev').addEventListener('click', () => {
+  if(S.page > 1){ S.page--; renderRows(); }
+});
+document.getElementById('pageNext').addEventListener('click', () => {
+  const pages = Math.max(1, Math.ceil(S.parts.length / PAGE_SIZE));
+  if(S.page < pages){ S.page++; renderRows(); }
+});
+document.getElementById('pageJump').addEventListener('change', e => {
+  const v = parseInt(e.target.value, 10);
+  const pages = Math.max(1, Math.ceil(S.parts.length / PAGE_SIZE));
+  if(isFinite(v) && v >= 1 && v <= pages){
+    S.page = v;
+    renderRows();
+  } else {
+    e.target.value = S.page;
   }
-  if(!confirm(`Remove ${indices.length} skipped part group${indices.length===1?'':'s'} from the table?`))
-    return;
-  // Remove from highest index downward so earlier indices stay valid
-  const entries = [];
-  for(let k=indices.length-1; k>=0; k--){
-    const idx = indices[k];
-    entries.unshift({index:idx, group:S.groups[idx]});
-    S.groups.splice(idx, 1);
-  }
-  pushUndo({kind:"groups", entries},
-           `Removed ${entries.length} skipped part group${entries.length===1?'':'s'}`);
-  renderGroups();
-  renderStatbar();
+});
+// Also commit on Enter
+document.getElementById('pageJump').addEventListener('keydown', e => {
+  if(e.key === 'Enter') e.target.dispatchEvent(new Event('change'));
 });
 
-document.getElementById('restoreAll').addEventListener('click', performUndo);
-document.getElementById('undoBtn').addEventListener('click', performUndo);
+// (Old refdes-pill helper no longer used now that each placement is its own row.
+// Kept stub to avoid reference errors in any straggler call sites.)
+function renderRefdesCell(){return ""}
 
 /* ============================================================
    FEEDER CONFIG SAVE / LOAD
@@ -1954,21 +2283,21 @@ function configKey(value, pkg){
 }
 
 function buildConfigPayload(){
-  const entries = S.groups.map(g => ({
-    value:   g.value || "",
-    package: g.package || "",
-    feeder:    g.settings.feeder,
-    nozzle:    g.settings.nozzle,
-    feedRate:  g.settings.feedRate,
-    height:    g.settings.height,
-    rotOffset: g.settings.rotOffset,
-    speed:     g.settings.speed,
-    vision:    g.settings.vision,
-    skip:      g.settings.skip,
-  }));
+  // Saved config now stores ONLY the Step 2 mapping (Value+Package → feeder/nozzle).
+  // Tape pitch, height, speed, vision still get auto-guessed on Step 3 from package
+  // name; we don't carry them in the config anymore.
+  const entries = [];
+  for(const u of S.uniqueParts){
+    const m = S.feederMap.get(u.key);
+    if(!m) continue;   // skip unmapped types
+    const e = {value: u.val, package: u.pkg};
+    if(typeof m.feeder === 'number') e.feeder = m.feeder;
+    if(m.nozzle === 1 || m.nozzle === 2) e.nozzle = m.nozzle;
+    entries.push(e);
+  }
   return {
     format: "chmt-feeder-config",
-    version: 1,
+    version: 2,             // bumped: now mapping-only, not full settings
     savedAt: new Date().toISOString(),
     sourceFile: S.filename || "",
     entries
@@ -1976,15 +2305,15 @@ function buildConfigPayload(){
 }
 
 function suggestedConfigName(){
-  // <basename of source>-feeders.json
   let stem = (S.filename || "feeders").replace(/\.[^.]*$/, "");
   if(!stem) stem = "feeders";
   return `${stem}-feeders.json`;
 }
 
 document.getElementById('exportConfig').addEventListener('click', ()=>{
-  if(!S.groups || S.groups.length === 0){
-    alert("No feeder assignments to save yet."); return;
+  if(S.feederMap.size === 0){
+    alert("No mappings to save yet. Set a Feeder ID or Nozzle on at least one row first.");
+    return;
   }
   const payload = buildConfigPayload();
   const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
@@ -1992,7 +2321,7 @@ document.getElementById('exportConfig').addEventListener('click', ()=>{
   const a = document.createElement('a');
   a.href = url; a.download = suggestedConfigName(); a.click();
   setTimeout(()=>URL.revokeObjectURL(url), 1000);
-  showUndoBanner(`Saved ${payload.entries.length} feeder assignment${payload.entries.length===1?'':'s'} to ${a.download}`);
+  showUndoBanner(`Saved ${payload.entries.length} mapping${payload.entries.length===1?'':'s'} to ${a.download}`);
 });
 
 document.getElementById('importConfig').addEventListener('click', ()=>{
@@ -2009,7 +2338,6 @@ document.getElementById('importConfigFile').addEventListener('change', e=>{
     } catch(err){
       alert("Couldn't load config:\n\n" + err.message);
     } finally {
-      // clear the input so picking the same file again retriggers
       e.target.value = "";
     }
   };
@@ -2025,47 +2353,38 @@ function applyConfigPayload(text, filename){
     throw new Error("This doesn't look like a feeder config file. Expected format=\"chmt-feeder-config\".");
   }
 
-  // Build a lookup table from the import
-  const byKey = new Map();
+  // Apply each entry into S.feederMap (case-insensitive match by value+package)
+  let applied = 0;
+  const knownKeys = new Set(S.uniqueParts.map(u => u.key));
+  const unusedEntries = [];
   for(const ent of payload.entries){
-    byKey.set(configKey(ent.value, ent.package), ent);
+    const k = configKey(ent.value, ent.package);
+    if(!knownKeys.has(k)){
+      unusedEntries.push(ent);
+      continue;
+    }
+    const m = S.feederMap.get(k) || {};
+    if(typeof ent.feeder === 'number' && isFinite(ent.feeder) && ent.feeder >= 1 && ent.feeder <= 99){
+      m.feeder = ent.feeder;
+    }
+    if(ent.nozzle === 1 || ent.nozzle === 2){
+      m.nozzle = ent.nozzle;
+    }
+    if(m.feeder !== undefined || m.nozzle !== undefined){
+      S.feederMap.set(k, m);
+      applied++;
+    }
   }
 
-  // Apply to current groups
-  let applied = 0, missing = 0;
-  const unmatchedGroups = [];
-  for(const g of S.groups){
-    const ent = byKey.get(configKey(g.value, g.package));
-    if(!ent){ missing++; unmatchedGroups.push(`${g.value||'—'} / ${g.package||'—'}`); continue; }
-    if(typeof ent.feeder    === 'number' && isFinite(ent.feeder))    g.settings.feeder    = ent.feeder;
-    if(typeof ent.nozzle    === 'number' && (ent.nozzle === 1 || ent.nozzle === 2)) g.settings.nozzle = ent.nozzle;
-    if(typeof ent.feedRate  === 'number' && isFinite(ent.feedRate))  g.settings.feedRate  = ent.feedRate;
-    if(typeof ent.height    === 'number' && isFinite(ent.height))    g.settings.height    = ent.height;
-    if(typeof ent.rotOffset === 'number' && isFinite(ent.rotOffset)) g.settings.rotOffset = ent.rotOffset;
-    if(typeof ent.speed     === 'number' && isFinite(ent.speed))     g.settings.speed     = ent.speed;
-    if(typeof ent.vision    === 'boolean') g.settings.vision = ent.vision;
-    if(typeof ent.skip      === 'boolean') g.settings.skip   = ent.skip;
-    applied++;
-  }
+  // Re-render the mapping table to reflect the loaded values
+  renderMappingTable();
 
-  // Identify entries in the import that have no match on the current board
-  const currentKeys = new Set(S.groups.map(g => configKey(g.value, g.package)));
-  const unusedEntries = payload.entries.filter(e => !currentKeys.has(configKey(e.value, e.package)));
-
-  renderGroups();
-  renderStatbar();
-
-  // Build a summary alert (non-blocking-ish — uses alert so user sees it)
+  // Summary alert
   const lines = [];
   lines.push(`Loaded ${filename}`);
   lines.push(`Saved on ${payload.savedAt || 'unknown date'}${payload.sourceFile ? ' from ' + payload.sourceFile : ''}`);
   lines.push("");
-  lines.push(`✓ Applied to ${applied} part group${applied===1?'':'s'} on this board.`);
-  if(missing > 0){
-    lines.push(`⚠ ${missing} group${missing===1?'':'s'} on this board had no match in the config — kept their auto-guessed defaults:`);
-    for(const u of unmatchedGroups.slice(0, 8)) lines.push(`    • ${u}`);
-    if(unmatchedGroups.length > 8) lines.push(`    … and ${unmatchedGroups.length - 8} more`);
-  }
+  lines.push(`✓ Applied to ${applied} part type${applied===1?'':'s'} on this board.`);
   if(unusedEntries.length > 0){
     lines.push(`ℹ ${unusedEntries.length} config entr${unusedEntries.length===1?'y':'ies'} weren't needed (not on this board):`);
     for(const u of unusedEntries.slice(0, 8)) lines.push(`    • ${u.value||'—'} / ${u.package||'—'}`);
@@ -2076,13 +2395,16 @@ function applyConfigPayload(text, filename){
 
 // (handler for toStep3 is defined above)
 
-/* Step 2 → Step 3: validate feeder assignments, advance to Board screen */
-document.getElementById('toStep3').addEventListener('click', ()=>{
+/* Step 3 → Step 4: validate feeder assignments, advance to Board screen */
+document.getElementById('toStep4').addEventListener('click', ()=>{
   // Validate: feeders unique among non-skipped groups (warn, not block)
   const seen = new Map();
   const dupes = [];
   for(const g of S.groups){
-    if(g.settings.skip) continue;
+    // skip is per-placement now; consider a group "active" if any placement isn't skipped
+    const anyActive = S.parts.some(p =>
+      configKey(p.val, p.pkg) === g.key && !p.skip);
+    if(!anyActive) continue;
     const f = g.settings.feeder;
     if(!isFinite(f) || f < 1 || f > 99){
       alert(`Group "${g.value}/${g.package}" has invalid feeder ${f}. Use 1–99.`);
@@ -2096,11 +2418,11 @@ document.getElementById('toStep3').addEventListener('click', ()=>{
     if(!confirm("Duplicate feeder IDs assigned: " + Array.from(new Set(dupes)).join(", ") + "\n\nThe DPV will list each station separately, but the machine expects unique IDs. Continue anyway?"))
       return;
   }
-  gotoStep(3);
+  gotoStep(4);
 });
 
-/* Step 3 → Step 4: capture board offsets/fiducials, generate DPV, show export */
-document.getElementById('toStep4').addEventListener('click', ()=>{
+/* Step 4 → Step 5: capture board offsets/fiducials, generate DPV, show export */
+document.getElementById('toStep5').addEventListener('click', ()=>{
   S.board.offX = parseFloat(document.getElementById('offX').value)||0;
   S.board.offY = parseFloat(document.getElementById('offY').value)||0;
   S.board.rotOff = parseFloat(document.getElementById('rotOff').value)||0;
@@ -2116,7 +2438,7 @@ document.getElementById('toStep4').addEventListener('click', ()=>{
   S.dpv = generateDPV();
   document.getElementById('dpvPreview').textContent = S.dpv;
   document.getElementById('finalStats').innerHTML = document.getElementById('statbar').innerHTML;
-  gotoStep(4);
+  gotoStep(5);
 });
 
 /* ============================================================
@@ -2152,8 +2474,17 @@ function generateDPV(){
   //   (kicad2charmhigh/sparkfun) that real CHM-T36VAs read fine.
   let stIdx = 0;
   const stationByGroup = new Map();
+  // Only emit a Station row if the group has at least one NON-SKIPPED placement
+  // on the board. (A group whose every placement is individually skipped doesn't
+  // need a feeder — the machine will never pick from it.)
+  const groupsWithActiveParts = new Set();
+  for(const p of S.parts){
+    if(p.skip) continue;
+    const g = findGroupForPart(p);
+    if(g) groupsWithActiveParts.add(g);
+  }
   for(const g of S.groups){
-    if(g.settings.skip) continue;
+    if(!groupsWithActiveParts.has(g)) continue;
     let status = 0;
     if(g.settings.vision) status |= 4;
     // (no vacuum-verify by default; user can edit on machine if desired)
@@ -2183,33 +2514,34 @@ function generateDPV(){
   lines.push("");
 
   // ----- ECOMPONENT TABLE (placements) -----
+  // Iterate S.parts (the per-placement source of truth, including any user edits
+  // to X/Y/rotation/skip) in current sort order. Skip flag is per-placement.
   lines.push("Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note,Delay");
   let ecIdx = 0;
   let placedCount = 0;
-  for(const g of S.groups){
-    const skipFlag = g.settings.skip ? 1 : 0;
+  for(const part of S.parts){
+    const g = findGroupForPart(part);
+    if(!g) continue;
+    const skipFlag = part.skip ? 1 : 0;          // per-placement
     let status = skipFlag;
     if(g.settings.vision) status |= 4;
     const stationId = g.settings.feeder;
     const note = (g.value && g.package) ? `${g.value} ${g.package}` : (g.value || g.package || "part");
-    for(const ref of g.refs){
-      const part = S.parts.find(p => p.ref === ref);
-      if(!part) continue;
-      const x = part.x + S.board.offX;
-      const y = part.y + S.board.offY;
-      // CHM rotation: positive = counter-clockwise. Fusion 360 also reports CCW positive.
-      // We add the per-feeder rotation offset and the global offset.
-      let ang = part.rot + g.settings.rotOffset + S.board.rotOff;
-      // Normalize to (-180, 180]
-      ang = ((ang + 180) % 360 + 360) % 360 - 180;
-      lines.push(
-        `EComponent,${ecIdx},${ecIdx+1},${g.settings.nozzle},${stationId},`+
-        `${fmt(x)},${fmt(y)},${fmt(ang)},${fmt(g.settings.height)},${status},${fmt(g.settings.speed)},`+
-        `${csvField(ref)},${csvField(note)},1`
-      );
-      ecIdx++;
-      if(!g.settings.skip) placedCount++;
-    }
+    const x = part.x + S.board.offX;
+    const y = part.y + S.board.offY;
+    // Per-placement rotation (edited directly in the table) plus the global offset
+    let ang = part.rot + S.board.rotOff;
+    // Normalize to (-180, 180]. Pure modular arithmetic flips 180 → -180; for
+    // half-turn we want to keep it as +180.
+    ang = ((ang % 360) + 360) % 360;  // 0..359.999
+    if(ang > 180) ang -= 360;          // → -179.999..180
+    lines.push(
+      `EComponent,${ecIdx},${ecIdx+1},${g.settings.nozzle},${stationId},`+
+      `${fmt(x)},${fmt(y)},${fmt(ang)},${fmt(g.settings.height)},${status},${fmt(g.settings.speed)},`+
+      `${csvField(part.ref)},${csvField(note)},1`
+    );
+    ecIdx++;
+    if(!part.skip) placedCount++;
   }
   // Spec note: "you must define at least 2 components (EComponent data rows) to get the LR fiducial location to calibrate"
   if(ecIdx < 2){
