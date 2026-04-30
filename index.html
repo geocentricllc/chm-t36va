@@ -1,9 +1,43 @@
 <!doctype html>
+<!--
+  Fusion 360 → Charmhigh CHM-T36VA · DPV Work-File Generator
+
+  MIT License
+
+  Copyright (c) 2026
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>F360 → CHM-T36VA Converter</title>
+
+<title>Fusion 360 .mnt → Charmhigh CHM-T36VA DPV File Converter</title>
+
+<!-- Search engine metadata -->
+<meta name="description" content="Free browser-based converter that turns Fusion 360 / EAGLE pick-and-place files (.mnt, .mnb, CSV) into Charmhigh CHM-T36VA DPV work files. Runs entirely in your browser — no uploads, no install. Open source under MIT.">
+<meta name="keywords" content="charmhigh, chm-t36va, dpv, dpv file, dpv converter, fusion 360, eagle cad, mountsmd, .mnt, pick and place, pnp, pcb assembly, smd placement, smt assembly, hobbyist pick and place, open source pcb tools">
+<meta name="author" content="geocentricllc">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://geocentricllc.github.io/chm-t36va/">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Fraunces:opsz,wght@9..144,700&display=swap" rel="stylesheet">
@@ -301,6 +335,15 @@ table input,table select{padding:4px 6px;font-size:12px;width:100%}
 table input.tight{width:54px}
 table input.small{width:48px}
 table input.coord{width:62px;color:var(--ink);font-variant-numeric:tabular-nums}
+/* Feeder input gets a left-edge color accent driven by --feeder-color (set
+   inline per row). Empty/zero feeder leaves --feeder-color unset → no accent.
+   The pseudo-element approach keeps the input's existing border/padding intact
+   without box-shadow eating into the input's interior space. */
+table input.feeder-input{
+  border-left:3px solid var(--feeder-color, transparent);
+  padding-left:6px;
+  transition:border-left-color .15s;
+}
 /* Row banding: same part type = same tint, alternating between two shades.
    Each band also has a subtle colored left edge so the grouping is visible
    even on rows that are mostly numeric inputs. */
@@ -548,6 +591,16 @@ footer{
   font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);
   display:flex;justify-content:space-between;
 }
+.footer-src{
+  color:var(--ink-faint);text-decoration:none;
+  display:inline-flex;align-items:center;gap:5px;
+  vertical-align:-2px;
+  transition:color .15s;
+}
+.footer-src:hover{color:var(--amber)}
+.footer-src-icon{
+  width:13px;height:13px;flex-shrink:0;
+}
 
 ::-webkit-scrollbar{height:10px;width:10px}
 ::-webkit-scrollbar-track{background:var(--panel-2)}
@@ -734,8 +787,8 @@ footer{
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:14px;flex-wrap:wrap">
       <div style="font-size:11px;color:var(--ink-faint);letter-spacing:.1em;text-transform:uppercase" id="mapStats">—</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn ghost" id="exportConfig" style="padding:7px 14px;font-size:11px" title="Save the current Value+Package → feeder/nozzle mapping to a .json file">↑ Save config</button>
-        <button class="btn ghost" id="importConfig" style="padding:7px 14px;font-size:11px" title="Load mappings from a previously-saved .json file">↓ Load config</button>
+        <button class="btn ghost" id="exportConfig" style="padding:7px 14px;font-size:11px" title="Save the current Value+Package → feeder/nozzle mapping to a .json file">↓ Save config</button>
+        <button class="btn ghost" id="importConfig" style="padding:7px 14px;font-size:11px" title="Load mappings from a previously-saved .json file">↑ Load config</button>
         <input type="file" id="importConfigFile" accept=".json,application/json" hidden>
         <button class="btn ghost" id="clearMappings" style="padding:7px 14px;font-size:11px" title="Clear all feeder ID and nozzle mappings">Clear all</button>
       </div>
@@ -1211,7 +1264,7 @@ footer{
         </table>
 
         <h3 id="h-config">Saving feeder configs</h3>
-        <p>On Step 2, the <b>↑ Save config</b> button exports your current Value+Package → Feeder/Nozzle mapping to a JSON file. The <b>↓ Load config</b> button applies a saved JSON to the current board's mapping table.</p>
+        <p>On Step 2, the <b>↓ Save config</b> button exports your current Value+Package → Feeder/Nozzle mapping to a JSON file. The <b>↑ Load config</b> button applies a saved JSON to the current board's mapping table.</p>
 
         <h4>What's stored</h4>
         <p>Only feeder ID and nozzle, keyed by Value+Package. Tape pitch, height, speed, and vision are <em>not</em> saved — they're auto-guessed from package names on every board, which is the right behavior since they depend on the part footprint, not the project. Per-placement coordinates and rotations are also not stored — those are board-specific.</p>
@@ -1289,7 +1342,7 @@ footer{
 
 <footer>
   <span>Runs entirely in your browser · No data uploaded</span>
-  <span>DPV v1 · Top-side · MM</span>
+  <span>DPV v1 · Top-side · MM · <a href="#" id="openLicense" style="color:var(--ink-faint);text-decoration:none;border-bottom:1px dotted var(--ink-faint)">MIT License</a> · <a href="https://github.com/geocentricllc/chm-t36va" target="_blank" rel="noopener noreferrer" class="footer-src" title="View source on GitHub"><svg class="footer-src-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>Source</a></span>
 </footer>
 
 </div>
@@ -1866,7 +1919,7 @@ function renderMappingTable(){
       <td class="col-mut" title="${escapeHtml(u.val)}">${escapeHtml(u.val || '—')}</td>
       <td class="col-pkg" title="${escapeHtml(u.pkg)}">${escapeHtml(u.pkg || '—')}</td>
       <td><span class="cnt-pill">${u.count}</span></td>
-      <td><input type="number" class="tight" min="1" max="99" placeholder="—" value="${feederVal}" data-mk="${escapeAttr(u.key)}" data-mf="feeder"></td>
+      <td><input type="number" class="tight feeder-input" min="1" max="99" placeholder="—" value="${feederVal}" data-mk="${escapeAttr(u.key)}" data-mf="feeder" style="--feeder-color:${feederColor(feederVal)}"></td>
       <td>
         <div class="nz-toggle" data-mk="${escapeAttr(u.key)}">
           <button type="button" data-nz="0" class="${nozzleVal===0?'on':''}" title="No nozzle preference (auto-guess)">—</button>
@@ -1904,6 +1957,8 @@ function renderMappingTable(){
       } else {
         S.feederMap.set(k, entry);
       }
+      // Update the color accent in real time as the user types
+      e.target.style.setProperty('--feeder-color', feederColor(entry.feeder));
       updateMapStats();
     };
     el.addEventListener('change', commit);
@@ -2505,7 +2560,7 @@ function renderRows(){
       <td><input type="number" class="coord" step="0.01" value="${fmtCoord(p.x)}" data-pi="${pi}" data-pf="x"></td>
       <td><input type="number" class="coord" step="0.01" value="${fmtCoord(p.y)}" data-pi="${pi}" data-pf="y"></td>
       <td><input type="number" class="coord" step="1" value="${fmtCoord(p.rot)}" data-pi="${pi}" data-pf="rot"></td>
-      <td><input type="number" class="tight" min="1" max="99" value="${g.settings.feeder}" data-gkey="${escapeAttr(g.key)}" data-f="feeder"></td>
+      <td><input type="number" class="tight feeder-input" min="1" max="99" value="${g.settings.feeder}" data-gkey="${escapeAttr(g.key)}" data-f="feeder" style="--feeder-color:${feederColor(g.settings.feeder)}"></td>
       <td>
         <div class="nz-toggle" data-gkey="${escapeAttr(g.key)}">
           <button type="button" data-nz="1" class="${g.settings.nozzle===1?'on':''}" title="Nozzle 1 (left) — small parts">N1</button>
@@ -2538,6 +2593,19 @@ function escapeAttr(s){
   return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 }
 
+// Produce a stable HSL color string for a given feeder ID. Uses the golden-angle
+// trick (137.508°) so consecutive IDs land far apart in hue space — neighboring
+// IDs are visibly different. Returns "" for invalid/zero IDs so the caller can
+// just pass it as a CSS var value to mean "no accent".
+function feederColor(id){
+  const n = parseInt(id, 10);
+  if(!isFinite(n) || n < 1 || n > 99) return "";
+  const hue = Math.round((n * 137.508) % 360);
+  // Tuned for dark theme: not too saturated (so it doesn't shout), bright enough
+  // to be unmistakable against the input's dark background.
+  return `hsl(${hue}, 65%, 60%)`;
+}
+
 function wireRowHandlers(tb){
   /* Group-level inputs (feeder, nozzle, pitch, height, speed, vision, skip)
      identified by data-gkey. Edits propagate to every row of that group. */
@@ -2562,6 +2630,11 @@ function wireRowHandlers(tb){
         tb.querySelectorAll(`input[data-gkey="${cssEscape(gkey)}"][data-f="${f}"]`).forEach(input => {
           if(input !== e.target && parseFloat(input.value) !== g.settings[f]){
             input.value = g.settings[f];
+          }
+          // For feeder inputs, also refresh the color accent so all rows of
+          // this group stay in sync visually.
+          if(f === 'feeder'){
+            input.style.setProperty('--feeder-color', feederColor(g.settings[f]));
           }
         });
       }
@@ -3007,6 +3080,18 @@ document.getElementById('openHelp').addEventListener('click', ()=>{
   document.body.style.overflow = 'hidden';
   // Focus the close button so Esc works immediately
   setTimeout(() => document.getElementById('closeHelp').focus(), 50);
+});
+
+// Footer "MIT License" link — show the license text in a simple alert.
+document.getElementById('openLicense').addEventListener('click', e => {
+  e.preventDefault();
+  alert(
+    "MIT License\n\n" +
+    "Copyright (c) 2026\n\n" +
+    "Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the \"Software\"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:\n\n" +
+    "The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.\n\n" +
+    "THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE."
+  );
 });
 
 function closeHelp(){
