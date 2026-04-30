@@ -65,6 +65,11 @@ header::after{
   font-family:'Archivo Narrow',sans-serif;font-weight:600;
   font-size:11px;letter-spacing:.18em;text-transform:uppercase;
   transition:all .15s;
+  display:inline-flex;align-items:center;gap:7px;
+}
+.help-btn-icon{
+  width:14px;height:14px;flex-shrink:0;
+  /* Use the button's currentColor so the icon picks up the hover/state color */
 }
 .help-btn:hover{color:var(--amber);border-color:var(--amber);background:#1a1d23}
 
@@ -488,6 +493,45 @@ tr.removing td{animation:rowOut .18s forwards}
 .form-row label{display:flex;flex-direction:column;gap:5px}
 .form-row label span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim)}
 
+/* FIDUCIAL CARDS */
+.fid-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:14px}
+.fid-card{
+  background:var(--panel-2);border:1px solid var(--line);
+  padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px;
+}
+.fid-label{
+  font-family:'Archivo Narrow',sans-serif;font-weight:700;
+  font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);
+}
+.fid-hint{
+  font-weight:400;color:var(--ink-faint);font-size:10px;letter-spacing:.14em;margin-left:6px;
+}
+.fid-auto-badge{
+  display:inline-block;margin-left:8px;
+  background:#1a2a1a;color:#a8d8a8;
+  border:1px solid #2e4d2e;
+  font-family:'JetBrains Mono',monospace;font-weight:500;
+  font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  padding:2px 7px;line-height:1.4;
+  vertical-align:1px;
+}
+.fid-sel{
+  background:var(--panel);border:1px solid var(--line);color:var(--ink);
+  padding:7px 9px;font-family:'JetBrains Mono',monospace;font-size:12px;
+  cursor:pointer;width:100%;
+}
+.fid-sel:focus{border-color:var(--amber);outline:none}
+.fid-coords{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fid-coords label{display:flex;flex-direction:column;gap:4px}
+.fid-coords label span{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim)}
+.fid-coords input{
+  font-family:'JetBrains Mono',monospace;font-size:12px;
+  font-variant-numeric:tabular-nums;
+}
+.fid-coords input[disabled]{
+  background:#0a0b0e;border-color:var(--line-soft);color:var(--ink-dim);cursor:not-allowed;
+}
+
 /* SUMMARY STAT BAR */
 .statbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);margin-bottom:18px}
 .statbar .stat{background:var(--panel);padding:14px 16px}
@@ -509,9 +553,96 @@ footer{
 ::-webkit-scrollbar-track{background:var(--panel-2)}
 ::-webkit-scrollbar-thumb{background:var(--line);border:2px solid var(--panel-2)}
 ::-webkit-scrollbar-thumb:hover{background:#3a3f48}
+/* SPLASH (boot-time loader) */
+.splash{
+  position:fixed;inset:0;z-index:9999;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:24px;
+  opacity:1;transition:opacity .5s ease-out;
+  pointer-events:auto;
+}
+.splash.fade-out{opacity:0;pointer-events:none}
+/* Subtle scan-line / background interest matching the app's theme */
+.splash::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(circle at 30% 30%, #1a1d2380 0%, transparent 50%),
+    radial-gradient(circle at 70% 70%, #1a1d2380 0%, transparent 50%);
+  pointer-events:none;
+}
+.splash-inner{
+  position:relative;z-index:1;
+  display:flex;flex-direction:column;align-items:center;gap:18px;
+  animation:splash-rise .5s ease-out;
+}
+@keyframes splash-rise{
+  from{opacity:0;transform:translateY(12px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.splash-title{
+  font-family:'Archivo Narrow',sans-serif;font-weight:700;
+  font-size:clamp(24px, 5vw, 40px);
+  letter-spacing:.04em;color:var(--ink);
+  margin:0;text-align:center;line-height:1.15;
+}
+.splash-title .arrow{
+  color:var(--amber);font-weight:400;display:inline-block;margin:0 .25em;
+  animation:splash-arrow 1.2s ease-in-out infinite;
+}
+@keyframes splash-arrow{
+  0%, 100%{transform:translateX(0);opacity:1}
+  50%{transform:translateX(6px);opacity:.65}
+}
+.splash-tag{
+  font-family:'Archivo Narrow',sans-serif;font-weight:400;
+  font-size:13px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ink-faint);text-align:center;
+}
+.splash-dots{
+  display:flex;gap:8px;margin-top:8px;
+}
+.splash-dots span{
+  width:6px;height:6px;background:var(--cyan);
+  animation:splash-dot 1.2s ease-in-out infinite;
+}
+.splash-dots span:nth-child(2){animation-delay:.15s;background:var(--amber)}
+.splash-dots span:nth-child(3){animation-delay:.3s}
+@keyframes splash-dot{
+  0%, 100%{opacity:.2;transform:scale(.8)}
+  50%{opacity:1;transform:scale(1.2)}
+}
 </style>
 </head>
 <body>
+
+<!-- Splash / boot-loader: fades out shortly after page load. Inline at top of body so it paints before the rest of the app initializes. -->
+<div class="splash" id="splash" role="status" aria-label="Loading">
+  <div class="splash-inner">
+    <h1 class="splash-title">Fusion 360 <span class="arrow">→</span> CHM-T36VA</h1>
+    <div class="splash-tag">DPV Work-File Generator</div>
+    <div class="splash-dots" aria-hidden="true"><span></span><span></span><span></span></div>
+  </div>
+</div>
+<script>
+  // Hide the splash 5 seconds after the document is parsed. The fade-out itself
+  // takes another ~500ms (matches the CSS transition); the element is removed
+  // afterwards so it doesn't sit in the DOM as an inert overlay.
+  (function(){
+    function fadeSplash(){
+      var s = document.getElementById('splash');
+      if(!s) return;
+      s.classList.add('fade-out');
+      setTimeout(function(){ if(s.parentNode) s.parentNode.removeChild(s); }, 550);
+    }
+    if(document.readyState === 'loading'){
+      document.addEventListener('DOMContentLoaded', function(){ setTimeout(fadeSplash, 5000); });
+    } else {
+      setTimeout(fadeSplash, 5000);
+    }
+  })();
+</script>
+
 <div class="wrap">
 
 <header>
@@ -520,7 +651,7 @@ footer{
     <span class="sub">DPV Work-File Generator</span>
   </div>
   <div class="meta">
-    <button class="help-btn" id="openHelp" aria-label="Open help" title="Help &amp; reference">? Help</button>
+    <button class="help-btn" id="openHelp" aria-label="Open user guide" title="User guide &amp; reference"><svg class="help-btn-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 2h4.5a2 2 0 0 1 1 .27V13.2a3 3 0 0 0-1-.2H2.5V2zm6.5.27A2 2 0 0 1 10 2h3.5v11H10a3 3 0 0 0-1 .2V2.27zM2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15H7a2 2 0 0 1 2 2v0a0 0 0 0 0 0 0v0a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 13.5 1H10a3 3 0 0 0-2 .8A3 3 0 0 0 6 1H2.5z" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>User Guide</button>
     <span>Charmhigh · CHM-T36VA</span>
     <span class="v">DPV V1 · Local-only</span>
   </div>
@@ -542,7 +673,7 @@ footer{
   </div>
   <div class="panel-body">
     <div class="alert">
-      Export from Fusion 360: <b>Manufacturing → Outputs → Pick and Place</b> generates <b>.mnt</b> (top) / <b>.mnb</b> (bottom) files — drop those directly. CSV/TXT pick-and-place files from CAM Processor also work; columns are auto-detected.
+      Export from Fusion 360: <b>Utilities → Automate → Run ULP → mountsmd.ulp</b> generates <b>.mnt</b> (top) / <b>.mnb</b> (bottom) files — drop those directly. CSV/TXT pick-and-place files from CAM Processor also work; columns are auto-detected.
     </div>
     <div class="drop" id="drop">
       <h3>Drop file here</h3>
@@ -781,13 +912,34 @@ footer{
     </div>
 
     <div style="margin-top:14px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px">Fiducial / Calibration Points (optional)</div>
-    <div class="form-row">
-      <label><span>Fiducial UL — X (mm)</span><input type="number" id="fidUlX" value="0" step="0.01"></label>
-      <label><span>Fiducial UL — Y (mm)</span><input type="number" id="fidUlY" value="0" step="0.01"></label>
-      <label><span>Fiducial LR — X (mm)</span><input type="number" id="fidLrX" value="0" step="0.01"></label>
-      <label><span>Fiducial LR — Y (mm)</span><input type="number" id="fidLrY" value="0" step="0.01"></label>
-      <label><span>Fiducial LL — X (mm)</span><input type="number" id="fidLlX" value="0" step="0.01"></label>
-      <label><span>Fiducial LL — Y (mm)</span><input type="number" id="fidLlY" value="0" step="0.01"></label>
+    <div style="font-size:11.5px;color:var(--ink-dim);margin-bottom:10px;line-height:1.55">
+      Pick the placement on your board that corresponds to each fiducial position. Coordinates auto-fill from the selected RefDes (with the X/Y offset above already applied). Choose <code style="background:#0a0b0e;border:1px solid var(--line-soft);padding:1px 5px;font-size:11px">(custom)</code> to type values directly, or <code style="background:#0a0b0e;border:1px solid var(--line-soft);padding:1px 5px;font-size:11px">(none)</code> to leave a position unset.
+    </div>
+    <div class="fid-grid">
+      <div class="fid-card" data-k="ul">
+        <div class="fid-label">Fiducial UL <span class="fid-hint">upper-left</span></div>
+        <select id="fidUlSel" class="fid-sel"></select>
+        <div class="fid-coords">
+          <label><span>X (mm)</span><input type="number" id="fidUlX" value="0" step="0.01" readonly disabled></label>
+          <label><span>Y (mm)</span><input type="number" id="fidUlY" value="0" step="0.01" readonly disabled></label>
+        </div>
+      </div>
+      <div class="fid-card" data-k="lr">
+        <div class="fid-label">Fiducial LR <span class="fid-hint">lower-right</span></div>
+        <select id="fidLrSel" class="fid-sel"></select>
+        <div class="fid-coords">
+          <label><span>X (mm)</span><input type="number" id="fidLrX" value="0" step="0.01" readonly disabled></label>
+          <label><span>Y (mm)</span><input type="number" id="fidLrY" value="0" step="0.01" readonly disabled></label>
+        </div>
+      </div>
+      <div class="fid-card" data-k="ll">
+        <div class="fid-label">Fiducial LL <span class="fid-hint">lower-left</span></div>
+        <select id="fidLlSel" class="fid-sel"></select>
+        <div class="fid-coords">
+          <label><span>X (mm)</span><input type="number" id="fidLlX" value="0" step="0.01" readonly disabled></label>
+          <label><span>Y (mm)</span><input type="number" id="fidLlY" value="0" step="0.01" readonly disabled></label>
+        </div>
+      </div>
     </div>
 
     <div style="margin-top:14px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px">Output File Name</div>
@@ -824,13 +976,14 @@ footer{
 <div class="help-overlay" id="helpOverlay" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
   <div class="help-panel">
     <div class="help-head">
-      <h2 id="helpTitle">Help &amp; Reference</h2>
+      <h2 id="helpTitle">User Guide</h2>
       <button class="help-close" id="closeHelp" aria-label="Close help">×</button>
     </div>
     <div class="help-body">
       <nav class="help-toc" id="helpToc">
         <a href="#h-quickstart">Quick start</a>
         <a href="#h-formats">File formats</a>
+        <a href="#h-mapping">Feeder mapping</a>
         <a href="#h-workflow">Workflow walkthrough</a>
         <a href="#h-feeders">Feeders &amp; nozzles</a>
         <a href="#h-tape">Tape pitch reference</a>
@@ -847,20 +1000,26 @@ footer{
 
         <h3 id="h-quickstart">Quick start</h3>
         <ol>
-          <li><b>Drop</b> your Fusion 360 <code>.mnt</code> (or CSV) onto the dropzone.</li>
-          <li><b>Continue</b> to the Assign Feeders table — assign a station ID to each part group, set nozzle, tape pitch, and height.</li>
-          <li><b>Continue</b> to Board / Calib — set X/Y offset if your file's origin isn't the PCB's lower-left corner.</li>
-          <li><b>Generate DPV</b>, review the preview, click Download.</li>
-          <li><b>Load the .dpv</b> on the CHM-T36VA via USB stick. Calibrate fiducials on the machine before running.</li>
+          <li><b>Step 1 — Load:</b> drop your <code>.mnt</code> file (from Fusion 360 or EAGLE's <code>mountsmd.ulp</code>) or a CSV onto the dropzone, then Continue.</li>
+          <li><b>Step 2 — Feeder Mapping (optional):</b> for each unique Value+Package, assign a Feeder ID and nozzle. Save the mapping to JSON to reuse on future boards. Skip this step entirely on a first pass and the converter will auto-assign sequential feeder IDs in Step 3.</li>
+          <li><b>Step 3 — Assign Feeders:</b> per-placement table where mapped feeder/nozzle defaults appear. Adjust feeder, nozzle, tape pitch, height, speed, vision per part type; X/Y/rotation per individual placement; tick Skip on any placement to leave it out of the run.</li>
+          <li><b>Step 4 — Board / Calib:</b> set X/Y offset if your file's origin isn't the PCB's lower-left corner. Pick fiducial RefDes from the dropdowns (auto-detected from <code>FID*</code>-style names when present).</li>
+          <li><b>Step 5 — Export:</b> review the DPV preview, click Download. Copy the <code>.dpv</code> file to a USB stick and load on the CHM-T36VA. Calibrate fiducials on the machine before running.</li>
         </ol>
         <p>That's the whole flow for a typical board. The rest of this help expands on each piece.</p>
 
         <h3 id="h-formats">Supported file formats</h3>
 
-        <h4>Fusion 360 .mnt and .mnb</h4>
-        <p>These are Fusion's native pick-and-place outputs. Generate them via <em>Manufacturing Workspace → Outputs → Pick and Place</em>. Fusion writes one file per side: <code>.mnt</code> = top, <code>.mnb</code> = bottom. The column layout is fixed:</p>
+        <h4>Fusion 360 / EAGLE .mnt and .mnb</h4>
+        <p>The <code>.mnt</code> / <code>.mnb</code> format comes from EAGLE's classic <b>mountsmd.ulp</b> script, which both EAGLE and Fusion 360's Electronics workspace ship with. Generate it via:</p>
+        <ul>
+          <li><b>Fusion 360 (Electronics):</b> <em>Utilities → Automate → Run ULP → mountsmd.ulp</em></li>
+          <li><b>EAGLE:</b> <em>File → Run ULP → mountsmd.ulp</em> from the board editor</li>
+        </ul>
+        <p>The script writes one file per side: <code>.mnt</code> = top, <code>.mnb</code> = bottom. The column layout is fixed:</p>
         <p><code>RefDes&nbsp;&nbsp;LocationX&nbsp;&nbsp;LocationY&nbsp;&nbsp;Rotation&nbsp;&nbsp;Value&nbsp;&nbsp;Package</code></p>
         <p>Whitespace-delimited, no header line, comments starting with <code>#</code> / <code>;</code> / <code>*</code> are stripped. The converter recognizes the extension and skips column-detection automatically.</p>
+        <div class="callout warn"><b>Don't confuse with the Manufacturing → Outputs → Pick and Place export.</b> Fusion 360 has a separate Manufacturing-workspace pick-and-place generator that omits the Package column — that file is incomplete for this converter's needs (the Package field is needed for nozzle/tape-pitch defaults). Use the <code>mountsmd.ulp</code> path instead.</div>
 
         <h4>CSV / TXT pick-and-place</h4>
         <p>Generic comma/tab/semicolon-delimited files from KiCad, EAGLE, Altium, or Fusion's CAM Processor work too. Column detection is based on header-row name matching:</p>
@@ -888,6 +1047,22 @@ footer{
         </ul>
         <p>The override dropdown on Step 1 lets you change this if the heuristic gets it wrong (rare, but possible for very small boards measured in mils).</p>
 
+        <h3 id="h-mapping">Feeder mapping</h3>
+        <p><b>Step 2</b> shows a table with one row per unique Value+Package pair found in your file. For each, you can optionally set a <b>Feeder ID</b> (the station number on your machine where that reel is loaded) and a <b>Nozzle</b> (N1 or N2). Leave blank to skip — those parts will get auto-assigned defaults on the next step.</p>
+
+        <h4>Why this step exists</h4>
+        <p>Most physical reels on the CHM-T36VA stay in the same station across multiple boards. Once you've loaded a reel of <code>10k 0402</code> at station 5, every future board with that part should use station 5 too. The mapping step lets you record those assignments once and reuse them on every subsequent board via Save Config / Load Config.</p>
+
+        <h4>What the mapping affects</h4>
+        <p>On Step 3, every placement of a mapped part type starts with the mapped feeder ID and nozzle as its default. You can still change those defaults on Step 3 — the mapping is a starting point, not a lock. Unmapped part types get the existing auto-guess: a sequential feeder ID and a nozzle picked from the package name (small SMD → N1, larger ICs → N2).</p>
+
+        <h4>Avoiding feeder collisions</h4>
+        <p>The Step 3 auto-assigner skips any feeder ID claimed by your Step 2 mappings. So if you map <code>10k 0402 → 5</code>, no unmapped group will get auto-assigned to feeder 5. This means the duplicate-feeder warning at Step 3→4 only fires for actual conflicts you created intentionally.</p>
+
+        <h4>Save / Load Config</h4>
+        <p>The buttons live on Step 2 and operate on the current mapping. <b>Save</b> writes only the rows you actually filled in (blank rows are not stored). <b>Load</b> applies a saved JSON to the current board: any Value+Package matches get the saved feeder/nozzle; unmatched entries are reported in a summary alert.</p>
+        <p>Saved configs are <em>portable across boards</em>: the same mapping works on any future board that includes those parts. Per-placement coordinates and rotations are not in the config — those are board-specific.</p>
+
         <h3 id="h-workflow">Workflow walkthrough</h3>
 
         <h4>Step 1 — Load file</h4>
@@ -899,28 +1074,32 @@ footer{
           <li>You want to include parts marked DNP — set DNP filter to "Include them"</li>
         </ul>
 
-        <h4>Step 2 — Assign feeders</h4>
-        <p>The table shows <b>one row per placement</b> on your board. Identical part types (same Value + Package) share feeder/nozzle/tape settings — editing those on one row updates every row of that part type. Editable per row:</p>
+        <h4>Step 2 — Feeder Mapping (optional)</h4>
+        <p>One row per unique Value+Package pair, with two optional inputs: a <b>Feeder ID</b> and a <b>Nozzle</b> toggle. See the <a href="#h-mapping">Feeder mapping</a> section above for the full rationale.</p>
+        <p>Use the <b>Save config</b> button to write the current mapping to a JSON file. Use <b>Load config</b> to apply a saved mapping to this board (case-insensitive Value+Package match). <b>Clear all</b> wipes the current mapping (useful before loading a different config from scratch).</p>
+        <p>Skip this step entirely on a first pass — the mapping is optional, and unmapped part types just get auto-assigned defaults on Step 3.</p>
+
+        <h4>Step 3 — Assign Feeders</h4>
+        <p>The table shows <b>one row per placement</b> on your board. Identical part types share most settings — editing them on one row updates every row of that part type, with sibling inputs visually synced. Editable per row:</p>
         <ul>
           <li><b>X / Y</b> — placement coordinates in mm (per-placement)</li>
           <li><b>Rotation</b> — placement angle in degrees, CCW positive (per-placement)</li>
-          <li><b>Feeder</b> — station ID where this reel is loaded (1–99) — shared across same-type parts</li>
+          <li><b>Skip</b> — flags this individual placement as "don't place" in the DPV (per-placement; ticking on R1 doesn't affect R2)</li>
+          <li><b>Feeder</b> — station ID where the reel for this part type is loaded (1–99) — shared across same-type parts</li>
           <li><b>Nozzle</b> — N1 (left) for small parts, N2 (right) for larger ones — shared</li>
           <li><b>Tape pitch</b> — physical reel spacing in mm; see <a href="#h-tape">tape pitch reference</a> — shared</li>
           <li><b>Height</b> — physical thickness of the part (mm) — shared</li>
           <li><b>Speed</b> — 0 means use machine default; raise above 0 only if the part needs slower handling — shared</li>
           <li><b>Vision</b> — on for ICs and fine-pitch; can turn off for very small passives — shared</li>
-          <li><b>Skip</b> — shared; flags the entire part type as "don't place" in the DPV</li>
         </ul>
-        <p>Click any column header (RefDes, Value, Package, X, Y, Rotation) to sort. Click again to reverse, third time to return to insertion order. RefDes uses natural sort (R1 &lt; R2 &lt; R10).</p>
-        <p>A subtle background tint clusters consecutive rows of the same part type, making it easy to scan groupings even when sorted by RefDes or coordinate.</p>
-        <p>The table is paged at <b>20 rows per page</b>. Use Prev / Next or type a page number into the jump box at the bottom of the table to navigate. Sort applies to the full dataset before paging, so sorting jumps you to page 1 with the right rows on top.</p>
-        <p>To exclude a part type from the run, tick its <b>Skip</b> checkbox — that row's placement still appears in the table (dimmed) and the DPV will mark it as skipped so the machine moves over it. Editing happens in-place; there is no separate save step.</p>
+        <p>Defaults: feeder/nozzle come from your Step 2 mapping if set; otherwise auto-assigned. Tape pitch, height, and nozzle (when not mapped) are guessed from the package name. The auto-assigner skips feeder IDs claimed by mappings, so no collisions sneak in.</p>
+        <p>Click <b>RefDes</b>, <b>Value</b>, or <b>Package</b> column headers to sort. Click again to reverse, third time to return to insertion order. RefDes uses natural sort (R1 &lt; R2 &lt; R10). X / Y / Rotation columns are not sortable. Skipped placements always partition to the end of the table regardless of sort.</p>
+        <p>The table is paged at <b>20 rows per page</b>. Use Prev / Next or the jump-to-page input. Sorting jumps you to page 1 with the new top of the order. A subtle background tint clusters same-part-type rows visually even when sorted by RefDes.</p>
 
-        <h4>Step 3 — Board origin &amp; calibration</h4>
-        <p>If your CSV's coordinates aren't relative to the PCB's lower-left corner, set X/Y offsets here. See <a href="#h-board">board origin</a> for details. Fiducial points are optional — the operator typically calibrates them on the machine.</p>
+        <h4>Step 4 — Board / Calib</h4>
+        <p>Set the X/Y offset if your file's origin isn't the PCB's lower-left corner; see <a href="#h-board">board origin</a> for details. Pick fiducial RefDes from the dropdowns; see <a href="#h-fiducials">fiducials &amp; calibration</a>.</p>
 
-        <h4>Step 4 — Review &amp; export</h4>
+        <h4>Step 5 — Review &amp; Export</h4>
         <p>The DPV preview shows exactly what will be written. Filename is editable. Download saves a plain-text <code>.dpv</code> file you can copy to a USB stick and load on the CHM-T36VA.</p>
 
         <h3 id="h-feeders">Feeders &amp; nozzles</h3>
@@ -970,8 +1149,8 @@ footer{
           <li>Negative X or Y values appear in the placements (the machine's origin must be set so all placements are positive)</li>
           <li>You're panelizing one-up boards into a larger panel and want to shift the placements into the panel's coordinate system</li>
         </ul>
-        <p><b>Quick test:</b> after Step 2 the table displays placements in the order they'll be made. If the smallest X/Y values are near zero — good. If they're at, say, X = −18 to +18 — the file uses a centered origin and you need an offset of about +18 mm.</p>
-        <p><b>Global rotation offset</b> (Step 3) rotates every placement by the same angle. Useful if you want to run the same DPV on a board mounted in a different orientation; rare otherwise. For individual reel-vs-footprint orientation mismatches, edit the affected placements' Rotation column directly on Step 2.</p>
+        <p><b>Quick test:</b> after Step 3 the table displays placements in the order they'll be made. If the smallest X/Y values are near zero — good. If they're at, say, X = −18 to +18 — the file uses a centered origin and you need an offset of about +18 mm.</p>
+        <p><b>Global rotation offset</b> (Step 4) rotates every placement by the same angle. Useful if you want to run the same DPV on a board mounted in a different orientation; rare otherwise. For individual reel-vs-footprint orientation mismatches, edit the affected placements' Rotation column directly on Step 3.</p>
 
         <h3 id="h-fiducials">Fiducials &amp; calibration</h3>
         <p>Fiducials are reference marks on the PCB that the machine's camera uses to figure out exactly where your board is sitting on the bed. The CHM-T36VA expects three:</p>
@@ -980,8 +1159,22 @@ footer{
           <li><b>LR</b> — lower-right fiducial</li>
           <li><b>LL</b> — lower-left fiducial</li>
         </ul>
-        <p>You can leave the fiducial X/Y values at <b>0</b> in the converter. The standard practice is to calibrate them at the machine itself: load the DPV, jog the camera to each physical fiducial mark, and the machine records the actual position into the file's CalibPoint section. This makes the converter's fiducial fields effectively optional — they're a starting hint at best.</p>
-        <div class="callout info"><b>If you do enter fiducial coordinates</b>, use the same coordinate system as your placements (same units, same origin) so the machine has a consistent frame of reference.</div>
+
+        <h4>The dropdown picker (Step 4)</h4>
+        <p>Each fiducial has its own card on Step 4 with a dropdown that lists every RefDes in your file plus two special options:</p>
+        <ul>
+          <li><b>(none)</b> — leaves X/Y at zero. Use this if your file has no fiducials at all and you'll calibrate entirely on the machine.</li>
+          <li><b>(custom)</b> — enables manual X/Y entry. Use this if you have fiducial coordinates from another source (e.g. a Gerber file) but they're not in the placement file.</li>
+          <li><b>Any RefDes</b> — auto-fills the X/Y display from that placement's coordinates, with the board X/Y offset already applied. The X/Y inputs are read-only when a RefDes is selected; selecting a different RefDes or <code>(custom)</code> changes that.</li>
+        </ul>
+
+        <h4>Auto-detection</h4>
+        <p>If your file has refdes matching <code>FID1</code> / <code>FID2</code> / <code>FID3</code> (also <code>MARK*</code> or <code>F1</code>/<code>F2</code>/<code>F3</code>), the converter pre-selects them as UL/LR/LL on first arrival at Step 4 and shows a small <em>auto-detected</em> badge next to each card's label. The badge disappears once you change the selection.</p>
+        <p>Auto-detection won't override choices you've already made — if you go back and forth between steps, your manual selections stick.</p>
+
+        <h4>Coordinates &amp; the X/Y offset</h4>
+        <p>Coordinates flowing into the DPV's <code>CalibPoint</code> section are the placement's raw X/Y plus the board offset above. Changing the offset live-updates the displayed fiducial coordinates so what you see on Step 4 is what gets written.</p>
+        <div class="callout info"><b>Calibrating on the machine.</b> Even with fiducial coordinates set in the DPV, standard practice is to calibrate at the machine: load the DPV, jog the camera to each physical fiducial mark, and the machine records the actual position. The DPV's fiducial values are a starting hint, not the final word.</div>
 
         <h3 id="h-dpv">DPV file format</h3>
         <p>The <code>.dpv</code> file is plain text, CRLF line endings, structured as labeled sections. The CHM-T36VA reads it from a USB stick. Generated files have these sections in order:</p>
@@ -1018,19 +1211,23 @@ footer{
         </table>
 
         <h3 id="h-config">Saving feeder configs</h3>
-        <p>The <b>↑ Save config</b> button on Step 2 exports a JSON file with all your feeder assignments — keyed by Value+Package. The <b>↓ Load config</b> button applies a saved config to the current board.</p>
+        <p>On Step 2, the <b>↑ Save config</b> button exports your current Value+Package → Feeder/Nozzle mapping to a JSON file. The <b>↓ Load config</b> button applies a saved JSON to the current board's mapping table.</p>
 
-        <h4>How matching works</h4>
-        <p>Each entry in the saved JSON is identified by its Value and Package. When you load a config onto a different board:</p>
+        <h4>What's stored</h4>
+        <p>Only feeder ID and nozzle, keyed by Value+Package. Tape pitch, height, speed, and vision are <em>not</em> saved — they're auto-guessed from package names on every board, which is the right behavior since they depend on the part footprint, not the project. Per-placement coordinates and rotations are also not stored — those are board-specific.</p>
+
+        <h4>How matching works on Load</h4>
         <ul>
-          <li>If the new board has a part group with the same Value+Package (case-insensitive), the saved settings are applied to that group.</li>
-          <li>If the new board has a part group <em>not</em> in the config, it keeps its auto-guessed defaults.</li>
-          <li>If the config has entries for parts <em>not</em> on the new board, they're listed as "unused" in the summary.</li>
+          <li>If the new board has a part type with the same Value+Package (case-insensitive), the saved feeder/nozzle is applied to its mapping row.</li>
+          <li>If the new board has a part type <em>not</em> in the config, its mapping row stays blank (and Step 3 will auto-assign a feeder when you continue).</li>
+          <li>If the config has entries for parts <em>not</em> on the new board, they're listed as "unused" in the summary alert that pops up after Load.</li>
         </ul>
-        <p>Settings saved per part type: feeder, nozzle, tape pitch, height, speed, vision flag, skip flag. <em>Not</em> saved: per-placement coordinates and rotations (those are board-specific).</p>
+
+        <h4>Old config compatibility</h4>
+        <p>Configs saved by older versions of this tool included tape pitch, height, speed, vision, and skip — those fields are silently ignored when loading. The feeder ID and nozzle still apply correctly.</p>
 
         <h4>Workflow suggestion</h4>
-        <p>Tune feeder assignments carefully on your first board. Save the config. On every subsequent board, load the config first and tweak only the new parts. Per-placement rotation tweaks (for reel-vs-footprint orientation fixes) can be applied directly on Step 2 — but those are placement-specific, so if every R1/R2/R3 of a reel needs the same +90° fix, set it once in your CAD library footprint instead so it comes through correctly from the .mnt.</p>
+        <p>Tune your feeder assignments carefully on your first board (in Step 2). Save the config. On every subsequent board with the same physical reel layout, load the config first and tweak only the parts you've added. Per-placement rotation tweaks (for reel-vs-footprint orientation fixes) can be applied directly on Step 3 — but those are placement-specific, so if every R1/R2/R3 of a reel needs the same +90° fix, set it once in your CAD library footprint instead so it comes through correctly from the .mnt.</p>
 
         <h3 id="h-troubleshoot">Troubleshooting</h3>
 
@@ -1057,7 +1254,7 @@ footer{
         </ul>
 
         <h4>The machine reports placements off the board</h4>
-        <p>Usually a coordinate origin issue. Check Step 3's X/Y offset. If your Fusion file uses board-center origin, the offset should be about <em>(half board width, half board height)</em>.</p>
+        <p>Usually a coordinate origin issue. Check Step 4's X/Y offset. If your Fusion file uses board-center origin, the offset should be about <em>(half board width, half board height)</em>.</p>
 
         <h4>"Duplicate feeder IDs assigned"</h4>
         <p>You've assigned the same feeder number to two different part groups. The DPV will still be generated but the machine will physically only have one reel at that station — the second part group will pick the wrong reel. Re-assign one of them to an unused feeder ID.</p>
@@ -1065,10 +1262,13 @@ footer{
         <h3 id="h-shortcuts">Tips &amp; shortcuts</h3>
         <ul>
           <li><b>Hover any ⓘ icon</b> in column headers for a per-field reference card.</li>
-          <li><b>Tab</b> moves between input fields in the feeder table — useful for quick keyboard entry of feeder IDs down a column.</li>
+          <li><b>Tab</b> moves between input fields on Step 3 — useful for quick keyboard entry of feeder IDs down a column.</li>
           <li><b>Click "Load demo data"</b> on Step 1 to walk through the workflow without your own file.</li>
-          <li><b>Sort by Package</b> on Step 2 to group similar parts together — useful when you want to see all your 0402s as one block to spot inconsistencies in tape pitch or nozzle.</li>
-          <li><b>Pagination:</b> the table shows 20 rows per page. Sorting always jumps to page 1 so the top of the new ordering is visible.</li>
+          <li><b>Sort by Package</b> on Step 3 to group similar parts together — useful for spotting inconsistencies in tape pitch or nozzle across rows of the same package.</li>
+          <li><b>Pagination:</b> the table on Step 3 shows 20 rows per page. Sorting always jumps to page 1 so the top of the new ordering is visible.</li>
+          <li><b>Skipped placements always partition to the end</b> of the table on Step 3, regardless of sort order. Skip is per-placement (per-row), not per-part-type.</li>
+          <li><b>Auto-detected fiducials:</b> if your file has <code>FID*</code>-named refdes, Step 4 picks them automatically and shows an <em>auto-detected</em> badge on each card until you change the selection.</li>
+          <li><b>Skip Step 2 entirely</b> on a first pass — feeder mapping is optional. The auto-assigner on Step 3 will give every part type a unique feeder ID.</li>
           <li><b>Esc closes this help panel.</b></li>
         </ul>
 
@@ -1124,7 +1324,7 @@ const S = {
   uniqueParts: [],  // [{val, pkg, count, key}] — populated for Step 2 mapping table
   feederMap: new Map(),  // key (val|pkg lowercased) → {feeder, nozzle} — defaults for Step 3
   groups: [],       // {key,value,package,refs:[],settings:{...}}
-  board: {offX:0,offY:0,rotOff:0,fid:{ulX:0,ulY:0,lrX:0,lrY:0,llX:0,llY:0},dpvName:"board.dpv"},
+  board: {offX:0,offY:0,rotOff:0,fid:{ulX:0,ulY:0,lrX:0,lrY:0,llX:0,llY:0,ulRef:"",lrRef:"",llRef:""},dpvName:"board.dpv"},
   dpv: ""
 };
 window.S = S;  // expose for debugging / introspection
@@ -1767,6 +1967,204 @@ document.getElementById('backToMapping').addEventListener('click', e => {
   e.preventDefault();
   gotoStep(2);
 });
+
+/* ============================================================
+   FIDUCIAL DROPDOWNS (Step 4)
+   Three identical mini-pickers for UL / LR / LL. Each is a <select>
+   listing every refdes plus "(none)" and "(custom)". Selecting a refdes
+   fills the read-only X/Y display with that placement's coords (after the
+   user's board X/Y offset). "(custom)" enables manual X/Y entry.
+   "(none)" zeroes both.
+============================================================ */
+
+const FID_KEYS = ['ul','lr','ll'];
+const FID_AUTO_PATTERNS = [/^FID(\d+)$/i, /^MARK(\d+)$/i, /^F(\d+)$/i];
+
+function populateFiducialDropdowns(){
+  // Build refdes list from S.parts, in natural-sort order
+  const refs = S.parts.map(p => p.ref).slice();
+  refs.sort((a, b) => refDesNaturalCompare(a, b));
+
+  // Auto-detect fiducial-shaped refdes (first time only): if state is empty,
+  // suggest FID1→UL, FID2→LR, FID3→LL based on pattern matching.
+  const fidLikeRefs = refs.filter(r => FID_AUTO_PATTERNS.some(p => p.test(r)));
+  fidLikeRefs.sort((a, b) => refDesNaturalCompare(a, b));
+  // Track whether each slot was auto-filled (so we can show a hint until the
+  // user changes the selection manually).
+  S._fidAutoFilled = S._fidAutoFilled || {ul:false, lr:false, ll:false};
+  if(fidLikeRefs.length >= 1 && !S.board.fid.ulRef && !S.board.fid.lrRef && !S.board.fid.llRef){
+    if(fidLikeRefs[0]){ S.board.fid.ulRef = fidLikeRefs[0]; S._fidAutoFilled.ul = true; }
+    if(fidLikeRefs[1]){ S.board.fid.lrRef = fidLikeRefs[1]; S._fidAutoFilled.lr = true; }
+    if(fidLikeRefs[2]){ S.board.fid.llRef = fidLikeRefs[2]; S._fidAutoFilled.ll = true; }
+  }
+
+  for(const k of FID_KEYS){
+    const sel = document.getElementById(`fid${k.toUpperCase()[0]}${k[1]}Sel`);
+    sel.innerHTML = '';
+    const currentRef = S.board.fid[`${k}Ref`] || '';
+
+    // Build options. Use the `selected` attribute on the matching option so
+    // the selection survives later cloneNode(true) calls. Setting sel.value
+    // afterwards does NOT survive cloning because cloneNode copies attributes,
+    // not properties.
+    const noneOpt = buildOpt('', '(none)');
+    if(currentRef === '') noneOpt.setAttribute('selected', 'selected');
+    sel.appendChild(noneOpt);
+
+    const customOpt = buildOpt('__custom__', '(custom — type X/Y manually)');
+    if(currentRef === '__custom__') customOpt.setAttribute('selected', 'selected');
+    sel.appendChild(customOpt);
+
+    const sep = document.createElement('option');
+    sep.disabled = true; sep.textContent = '──────────';
+    sel.appendChild(sep);
+
+    for(const r of refs){
+      const o = buildOpt(r, r);
+      if(r === currentRef) o.setAttribute('selected', 'selected');
+      sel.appendChild(o);
+    }
+    // Sync the display X/Y based on the selection
+    syncFiducialDisplay(k);
+    syncAutoBadge(k);
+    // Wire the change listener — clone+replace to avoid stacking on re-entry
+    const fresh = sel.cloneNode(true);
+    sel.parentNode.replaceChild(fresh, sel);
+    fresh.addEventListener('change', () => {
+      S._fidAutoFilled[k] = false;       // user took control; remove the badge
+      onFiducialSelChange(k);
+      syncAutoBadge(k);
+    });
+  }
+  // Wire X/Y inputs (in case "(custom)" was selected — they need to update
+  // S.board.fid live as the user types). Replace listeners similarly.
+  for(const k of FID_KEYS){
+    const upper = k.toUpperCase();
+    for(const axis of ['X','Y']){
+      const id = `fid${upper[0]}${k[1]}${axis}`;
+      const el = document.getElementById(id);
+      const fresh = el.cloneNode(true);
+      // Preserve disabled/value
+      fresh.value = el.value;
+      fresh.disabled = el.disabled;
+      fresh.readOnly = el.readOnly;
+      el.parentNode.replaceChild(fresh, el);
+      fresh.addEventListener('input', () => {
+        if(S.board.fid[`${k}Ref`] === '__custom__'){
+          S.board.fid[`${k}${axis}`] = parseFloat(fresh.value) || 0;
+        }
+      });
+    }
+  }
+}
+
+// Show or hide the "Auto-detected" badge next to a fiducial card based on
+// whether that slot is still using the auto-filled value (user hasn't touched it).
+function syncAutoBadge(k){
+  const card = document.querySelector(`.fid-card[data-k="${k}"]`);
+  if(!card) return;
+  let badge = card.querySelector('.fid-auto-badge');
+  const show = S._fidAutoFilled && S._fidAutoFilled[k];
+  if(show){
+    if(!badge){
+      badge = document.createElement('span');
+      badge.className = 'fid-auto-badge';
+      badge.textContent = 'auto-detected';
+      const labelEl = card.querySelector('.fid-label');
+      if(labelEl) labelEl.appendChild(badge);
+    }
+  } else if(badge){
+    badge.remove();
+  }
+}
+
+function buildOpt(value, label){
+  const o = document.createElement('option');
+  o.value = value; o.textContent = label;
+  return o;
+}
+
+function onFiducialSelChange(k){
+  const sel = document.getElementById(`fid${k.toUpperCase()[0]}${k[1]}Sel`);
+  S.board.fid[`${k}Ref`] = sel.value;
+  syncFiducialDisplay(k);
+}
+
+// Update the read-only X/Y inputs and disabled-state based on the current
+// selection. Also writes into S.board.fid.{ul,lr,ll}{X,Y} for non-custom modes.
+function syncFiducialDisplay(k){
+  const upper = k.toUpperCase();
+  const xIn = document.getElementById(`fid${upper[0]}${k[1]}X`);
+  const yIn = document.getElementById(`fid${upper[0]}${k[1]}Y`);
+  const ref = S.board.fid[`${k}Ref`];
+
+  if(!ref){
+    // (none)
+    xIn.value = '0'; yIn.value = '0';
+    xIn.disabled = true; yIn.disabled = true;
+    xIn.readOnly = true; yIn.readOnly = true;
+    S.board.fid[`${k}X`] = 0;
+    S.board.fid[`${k}Y`] = 0;
+    return;
+  }
+  if(ref === '__custom__'){
+    // (custom) — let user type
+    xIn.disabled = false; yIn.disabled = false;
+    xIn.readOnly = false; yIn.readOnly = false;
+    // Don't overwrite their current values — but commit whatever's there to state
+    S.board.fid[`${k}X`] = parseFloat(xIn.value) || 0;
+    S.board.fid[`${k}Y`] = parseFloat(yIn.value) || 0;
+    return;
+  }
+  // refdes was picked — pull its coords (with current offset applied)
+  const part = S.parts.find(p => p.ref === ref);
+  const ox = parseFloat(document.getElementById('offX').value) || 0;
+  const oy = parseFloat(document.getElementById('offY').value) || 0;
+  if(part){
+    const fx = part.x + ox;
+    const fy = part.y + oy;
+    xIn.value = fmtCoord(fx);
+    yIn.value = fmtCoord(fy);
+    S.board.fid[`${k}X`] = fx;
+    S.board.fid[`${k}Y`] = fy;
+  } else {
+    xIn.value = '0'; yIn.value = '0';
+    S.board.fid[`${k}X`] = 0;
+    S.board.fid[`${k}Y`] = 0;
+  }
+  xIn.disabled = true; yIn.disabled = true;
+  xIn.readOnly = true; yIn.readOnly = true;
+}
+
+// Re-resolve at submit time, in case the user changed the X/Y offset
+// after picking a refdes. For "(custom)" it just reads back the manual values.
+function resolveFiducialCoords(k){
+  syncFiducialDisplay(k);
+}
+
+// When the user changes the global X/Y offset on Step 4, the displayed
+// fiducial coords (which are offset-adjusted) need to refresh too.
+['offX','offY'].forEach(id => {
+  document.addEventListener('DOMContentLoaded', () => {
+    // No-op — wired below in the live block
+  });
+});
+// Wire offset change listeners so dropdown-driven displays stay in sync.
+// We do this once at init.
+(function wireOffsetListeners(){
+  const ids = ['offX','offY'];
+  for(const id of ids){
+    const el = document.getElementById(id);
+    if(!el) continue;
+    el.addEventListener('input', () => {
+      // Only refresh if any fiducial is referenced (not "(none)" / "(custom)")
+      for(const k of FID_KEYS){
+        const r = S.board.fid[`${k}Ref`];
+        if(r && r !== '__custom__') syncFiducialDisplay(k);
+      }
+    });
+  }
+})();
 
 function buildGroups(){
   const map = new Map();
@@ -2418,6 +2816,7 @@ document.getElementById('toStep4').addEventListener('click', ()=>{
     if(!confirm("Duplicate feeder IDs assigned: " + Array.from(new Set(dupes)).join(", ") + "\n\nThe DPV will list each station separately, but the machine expects unique IDs. Continue anyway?"))
       return;
   }
+  populateFiducialDropdowns();
   gotoStep(4);
 });
 
@@ -2426,12 +2825,13 @@ document.getElementById('toStep5').addEventListener('click', ()=>{
   S.board.offX = parseFloat(document.getElementById('offX').value)||0;
   S.board.offY = parseFloat(document.getElementById('offY').value)||0;
   S.board.rotOff = parseFloat(document.getElementById('rotOff').value)||0;
-  S.board.fid.ulX = parseFloat(document.getElementById('fidUlX').value)||0;
-  S.board.fid.ulY = parseFloat(document.getElementById('fidUlY').value)||0;
-  S.board.fid.lrX = parseFloat(document.getElementById('fidLrX').value)||0;
-  S.board.fid.lrY = parseFloat(document.getElementById('fidLrY').value)||0;
-  S.board.fid.llX = parseFloat(document.getElementById('fidLlX').value)||0;
-  S.board.fid.llY = parseFloat(document.getElementById('fidLlY').value)||0;
+  // Resolve each fiducial position from its selector + (current) offset.
+  // For "(custom)" the X/Y inputs are user-entered raw values. For a refdes,
+  // we re-look-up its coordinate now (offsets above may have changed since
+  // the dropdown last rendered them).
+  resolveFiducialCoords('ul');
+  resolveFiducialCoords('lr');
+  resolveFiducialCoords('ll');
   S.board.dpvName = document.getElementById('dpvName').value.trim() || "board.dpv";
   if(!/\.dpv$/i.test(S.board.dpvName)) S.board.dpvName += ".dpv";
 
