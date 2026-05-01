@@ -4,6 +4,10 @@ A free, browser-based tool that converts Fusion 360 / EAGLE pick-and-place files
 
 **Live:** [geocentricllc.github.io/chm-t36va](https://geocentricllc.github.io/chm-t36va/)
 
+![Screenshot of the converter](screenshot.png)
+
+<!-- Replace screenshot.png with a capture of the app — Step 3 (Assign Feeders) with the demo data loaded shows the most visually interesting view. Recommended size: 1600px wide. -->
+
 Runs entirely in your browser. No uploads, no install, no telemetry. Save the page to disk and use it offline.
 
 ---
@@ -87,7 +91,11 @@ Any comma/tab/semicolon-delimited file with a header row works. Column detection
 | Side | Side, Layer, TB, Mirror | No |
 | DNP | DNP, DNI, Do Not Place/Populate/Install, Populate | No |
 
-Files from KiCad, Altium, EAGLE's CAM Processor, OrCAD, and others should auto-detect cleanly. Override dropdowns on Step 1 let you correct the auto-detection if the heuristic gets units, side, or DNP wrong.
+Files from KiCad, EasyEDA, EAGLE's CAM Processor, OrCAD, and others should auto-detect cleanly. Override dropdowns on Step 1 let you correct the auto-detection if the heuristic gets units, side, or DNP wrong.
+
+> **EasyEDA users:** export via *File → Export → Pick and Place File* (Std edition: *Top Menu → Fabrication → Pick and Place File*). EasyEDA writes UTF-8 with a BOM and tab delimiters — both are handled transparently. `Mid X` / `Mid Y` are used as placement coords; the additional `Ref X/Y` and `Pad X/Y` columns are ignored.
+
+> **KiCad users:** export via *File → Fabrication Outputs → Component Placement (.pos) File* in the PCB Editor. Both the **CSV format** (`.csv` with `Ref,Val,Package,PosX,PosY,Rot,Side`) and the **Plain Text / ASCII format** (`.pos` with whitespace-aligned columns and `#`-prefixed header) are supported. Use *millimeters* as the unit, and set the board origin via *Place → Drill/Place File Origin* at the lower-left corner before exporting — otherwise placements will be offset from the page origin.
 
 ### Coordinate units
 
@@ -246,8 +254,8 @@ Almost always a reel-vs-footprint orientation mismatch in your CAD library. Two 
 **The placements end up off the board on the machine.**
 Usually a coordinate-origin issue. Check Step 4's X/Y offset. If your Fusion file uses board-center origin, the offset should be roughly *(half board width, half board height)*.
 
-**Can I use this with KiCad or Altium?**
-Yes — anything that exports a CSV with the standard column names listed above. Most CAD tools have a pick-and-place export option that produces this.
+**Can I use this with KiCad or EasyEDA?**
+Yes — both have dedicated callouts in the file formats section above. Other CAD tools that export a CSV with the standard column names listed above also work via auto-detection.
 
 **Does this work offline?**
 Yes. Save the HTML file to disk and open it in any browser. The only network call is for Google Fonts on first load — if your browser blocks it, the page falls back to system fonts and still works.
