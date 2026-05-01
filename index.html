@@ -259,6 +259,36 @@ header::after{
   box-shadow:var(--shadow);
   margin-bottom:24px;
 }
+
+/* SLIDE TRANSITIONS between steps.
+   When gotoStep() switches panels, two panels are briefly visible:
+   - The outgoing panel slides off (left for forward nav, right for back).
+   - The incoming panel slides in from the opposite side.
+   The outgoing panel is positioned absolutely during transit so the layout
+   doesn't visibly stack/reflow. .wrap gets relative positioning + overflow
+   clip so the slide doesn't push horizontal scrollbars. */
+.wrap{position:relative;overflow-x:clip}
+.panel.slide-out-left,
+.panel.slide-out-right{
+  position:absolute;left:0;right:0;
+  top:var(--slide-top, 0);
+  margin:0;
+  pointer-events:none;
+  z-index:2;
+}
+.panel.slide-out-left{ animation:slideOutLeft  .26s ease-in forwards; }
+.panel.slide-out-right{ animation:slideOutRight .26s ease-in forwards; }
+.panel.slide-in-right{ animation:slideInRight .26s ease-out; }
+.panel.slide-in-left { animation:slideInLeft  .26s ease-out; }
+
+@keyframes slideOutLeft  { from{transform:translateX(0); opacity:1} to{transform:translateX(-30px); opacity:0} }
+@keyframes slideOutRight { from{transform:translateX(0); opacity:1} to{transform:translateX( 30px); opacity:0} }
+@keyframes slideInRight  { from{transform:translateX( 30px); opacity:0} to{transform:translateX(0); opacity:1} }
+@keyframes slideInLeft   { from{transform:translateX(-30px); opacity:0} to{transform:translateX(0); opacity:1} }
+@media (prefers-reduced-motion: reduce){
+  .panel.slide-out-left,.panel.slide-out-right,
+  .panel.slide-in-left, .panel.slide-in-right{ animation:none }
+}
 .panel-head{
   padding:14px 18px;border-bottom:1px solid var(--line);
   display:flex;justify-content:space-between;align-items:center;gap:16px;
@@ -1386,15 +1416,63 @@ window.S = S;  // expose for debugging / introspection
    STEP NAVIGATION
 ============================================================ */
 function gotoStep(n){
-  document.querySelectorAll('[data-panel]').forEach(p=>{
-    p.classList.toggle('hidden', +p.dataset.panel !== n);
-  });
+  // Find the panel that's currently visible (if any) so we can animate
+  // it out toward the correct side. The first call to gotoStep (page load)
+  // has no previous panel — just show the target without a transition.
+  const targetEl = document.querySelector(`[data-panel="${n}"]`);
+  const oldEl = Array.from(document.querySelectorAll('[data-panel]'))
+                     .find(p => !p.classList.contains('hidden'));
+  const oldStep = oldEl ? +oldEl.dataset.panel : null;
+
+  // Update rail (active/done markers) regardless of animation
   document.querySelectorAll('.step').forEach(s=>{
     const k = +s.dataset.step;
     s.classList.remove('active','done','skipped');
     if(k === n) s.classList.add('active');
     else if(k < n) s.classList.add('done');
   });
+
+  if(!oldEl || oldEl === targetEl){
+    // No previous panel to transition from — just show the target
+    document.querySelectorAll('[data-panel]').forEach(p=>{
+      p.classList.toggle('hidden', +p.dataset.panel !== n);
+    });
+    window.scrollTo({top:0,behavior:'smooth'});
+    return;
+  }
+
+  const goingForward = n > oldStep;
+  // The outgoing panel goes absolute during transit; record its current
+  // top offset within .wrap so it stays visually anchored.
+  const wrap = oldEl.parentElement;
+  const oldTop = oldEl.offsetTop - wrap.offsetTop;
+  oldEl.style.setProperty('--slide-top', oldTop + 'px');
+
+  // Reveal the target panel BEFORE applying classes so layout is settled
+  targetEl.classList.remove('hidden');
+
+  // Apply animation classes
+  if(goingForward){
+    oldEl.classList.add('slide-out-left');
+    targetEl.classList.add('slide-in-right');
+  } else {
+    oldEl.classList.add('slide-out-right');
+    targetEl.classList.add('slide-in-left');
+  }
+
+  // Cleanup after the animation completes
+  const cleanup = () => {
+    oldEl.classList.remove('slide-out-left','slide-out-right','hidden');
+    oldEl.classList.add('hidden');
+    oldEl.style.removeProperty('--slide-top');
+    targetEl.classList.remove('slide-in-left','slide-in-right');
+    oldEl.removeEventListener('animationend', cleanup);
+  };
+  oldEl.addEventListener('animationend', cleanup);
+  // Belt-and-braces: if animationend doesn't fire (e.g., reduced motion),
+  // run cleanup manually after a slightly-longer-than-animation delay.
+  setTimeout(cleanup, 400);
+
   window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('[data-back]').forEach(b=>{
