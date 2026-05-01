@@ -4,7 +4,7 @@ A free, browser-based tool that converts Fusion 360 / EAGLE pick-and-place files
 
 **Live:** [geocentricllc.github.io/chm-t36va](https://geocentricllc.github.io/chm-t36va/)
 
-![Screenshot of the converter](screenshot.png)
+![Screenshot of the converter](screenshot.jpg)
 
 <!-- Replace screenshot.png with a capture of the app — Step 3 (Assign Feeders) with the demo data loaded shows the most visually interesting view. Recommended size: 1600px wide. -->
 
