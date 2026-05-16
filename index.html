@@ -91,6 +91,7 @@ header::after{
   text-align:right;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-faint);
   display:flex;flex-direction:column;gap:4px;align-items:flex-end;
 }
+.meta-buttons{display:flex;gap:8px}
 .meta .v{color:var(--amber)}
 .help-btn{
   align-self:flex-end;margin-bottom:6px;
@@ -100,6 +101,7 @@ header::after{
   font-size:11px;letter-spacing:.18em;text-transform:uppercase;
   transition:all .15s;
   display:inline-flex;align-items:center;gap:7px;
+  text-decoration:none;  /* for the mailto anchor styled as a button */
 }
 .help-btn-icon{
   width:14px;height:14px;flex-shrink:0;
@@ -734,9 +736,12 @@ footer{
     <span class="sub">DPV Work-File Generator</span>
   </div>
   <div class="meta">
-    <button class="help-btn" id="openHelp" aria-label="Open user guide" title="User guide &amp; reference"><svg class="help-btn-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 2h4.5a2 2 0 0 1 1 .27V13.2a3 3 0 0 0-1-.2H2.5V2zm6.5.27A2 2 0 0 1 10 2h3.5v11H10a3 3 0 0 0-1 .2V2.27zM2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15H7a2 2 0 0 1 2 2v0a0 0 0 0 0 0 0v0a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 13.5 1H10a3 3 0 0 0-2 .8A3 3 0 0 0 6 1H2.5z" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>User Guide</button>
+    <div class="meta-buttons">
+      <a class="help-btn" id="openFeedback" href="mailto:g9six@outlook.com?subject=CHM-T36VA%20File%20Converter%20Feedback" aria-label="Send feedback" title="Send feedback by email"><svg class="help-btn-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 3.5h13v9h-13z M1.5 3.5l6.5 5 6.5-5" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round" stroke-linecap="round"/></svg>Feedback</a>
+      <button class="help-btn" id="openHelp" aria-label="Open user guide" title="User guide &amp; reference"><svg class="help-btn-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 2h4.5a2 2 0 0 1 1 .27V13.2a3 3 0 0 0-1-.2H2.5V2zm6.5.27A2 2 0 0 1 10 2h3.5v11H10a3 3 0 0 0-1 .2V2.27zM2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15H7a2 2 0 0 1 2 2v0a0 0 0 0 0 0 0v0a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 13.5 1H10a3 3 0 0 0-2 .8A3 3 0 0 0 6 1H2.5z" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>User Guide</button>
+    </div>
     <span>Charmhigh · CHM-T36VA</span>
-    <span class="v" id="headerVersion">DPV V1.3</span>
+    <span class="v" id="headerVersion">DPV V1.5</span>
   </div>
 </header>
 
@@ -1062,6 +1067,9 @@ footer{
   <div class="panel-body">
     <div class="statbar" id="finalStats"></div>
     <div class="alert ok" id="okMsg">DPV file generated. Review the preview below — anything looks off, go back and adjust.</div>
+    <div class="alert" id="phantomNotice" style="display:none;background:#1a1714;border-color:#3a3528;color:#d4c5a8">
+      <b>Note:</b> <span id="phantomNoticeText"></span> Look for the row(s) labeled <code>DUMMY</code> in the preview below. They're harmless — the machine treats them as skipped — and they only appear when you have fewer than 2 active placements.
+    </div>
     <div style="font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px">DPV Preview</div>
     <pre class="code" id="dpvPreview"></pre>
     <div class="actions">
@@ -1099,10 +1107,10 @@ footer{
 
         <h3 id="h-quickstart">Quick start</h3>
         <ol>
-          <li><b>Step 1 — Load:</b> drop your PnP file (<code>.mnt</code> or CSV from any supported CAD tool) onto the dropzone, then Continue.</li>
+          <li><b>Step 1 — Load:</b> drop your PnP file (<code>.mnt</code>, <code>.mnb</code>, <code>.pos</code>, or CSV from any supported CAD tool) onto the dropzone, then Continue. Or click <b>Load demo data</b> to walk through with a synthetic board (5 components plus 3 fiducials).</li>
           <li><b>Step 2 — Feeder Mapping (optional):</b> for each unique Value+Package, assign a Feeder ID and nozzle. Save the mapping to JSON to reuse on future boards. Skip this step entirely on a first pass and the converter will auto-assign sequential feeder IDs in Step 3.</li>
-          <li><b>Step 3 — Assign Feeders:</b> per-placement table where mapped feeder/nozzle defaults appear. Adjust feeder, nozzle, tape pitch, height, speed, vision per part type; X/Y/rotation per individual placement; tick Skip on any placement to leave it out of the run.</li>
-          <li><b>Step 4 — Board / Calib:</b> set X/Y offset if your file's origin isn't the PCB's lower-left corner. Pick fiducial RefDes from the dropdowns (auto-detected from <code>FID*</code>-style names when present).</li>
+          <li><b>Step 3 — Assign Feeders:</b> per-placement table where mapped feeder/nozzle defaults appear. Adjust feeder, nozzle, tape pitch, height, speed, vision per part type; X/Y/rotation per individual placement; tick Skip on any placement to leave it out of the run (skipped rows are omitted from the DPV entirely).</li>
+          <li><b>Step 4 — Board / Calib:</b> set X/Y offset if your file's origin isn't the PCB's lower-left corner. Fiducial dropdowns auto-detect <code>FID*</code>-style refdes, or fall back to placements whose Value/Package starts with <code>FID</code>.</li>
           <li><b>Step 5 — Export:</b> review the DPV preview, click Download. Copy the <code>.dpv</code> file to a USB stick and load on the CHM-T36VA. Calibrate fiducials on the machine before running.</li>
         </ol>
         <p>That's the whole flow for a typical board. The rest of this help expands on each piece.</p>
@@ -1120,32 +1128,33 @@ footer{
         <p>Whitespace-delimited, no header line, comments starting with <code>#</code> / <code>;</code> / <code>*</code> are stripped. The converter recognizes the extension and skips column-detection automatically.</p>
         <div class="callout warn"><b>Don't confuse with the Manufacturing → Outputs → Pick and Place export.</b> Fusion 360 has a separate Manufacturing-workspace pick-and-place generator that omits the Package column — that file is incomplete for this converter's needs (the Package field is needed for nozzle/tape-pitch defaults). Use the <code>mountsmd.ulp</code> path instead.</div>
 
-        <h4>CSV / TXT pick-and-place</h4>
-        <p>Generic comma/tab/semicolon-delimited files from KiCad, EasyEDA, EAGLE, or Fusion's CAM Processor work too. Column detection is based on header-row name matching:</p>
+        <h4>KiCad .pos and .csv</h4>
+        <p>Generate via <em>File → Fabrication Outputs → Component Placement (.pos) File</em> in the PCB Editor. Both KiCad output formats are supported:</p>
+        <ul>
+          <li><b>CSV format</b> (<code>.csv</code>) — comma-separated with headers <code>Ref,Val,Package,PosX,PosY,Rot,Side</code>. Recommended for new projects.</li>
+          <li><b>Plain Text / ASCII format</b> (<code>.pos</code>) — whitespace-aligned columns with metadata header lines (<code>### Module positions</code>, <code>## Unit = mm</code>) and a <code>#</code>-prefixed column header. The parser recognizes this format and uses it directly.</li>
+        </ul>
+        <p>Use <b>millimeters</b> as the unit. Set the board origin via <em>Place → Drill/Place File Origin</em> at the lower-left corner of your board before exporting — otherwise placements will be relative to the page origin (typically far off the board) and you'll need a large X/Y offset on Step 4 to compensate.</p>
+
+        <h4>EasyEDA pick-and-place CSV</h4>
+        <p>Generate via <em>File → Export → Pick and Place File</em> (Std edition: <em>Top Menu → Fabrication → Pick and Place File</em>). EasyEDA exports as UTF-8 with a BOM and tab delimiters — the parser handles both transparently. The <code>Mid X</code>/<code>Mid Y</code> columns are used as the placement coords; <code>Ref X/Y</code> and <code>Pad X/Y</code> are ignored (they reference the part's library origin, not the placed centroid). Bottom-side parts are filtered out by default; change the Side dropdown on Step 1 if you need them.</p>
+
+        <h4>Generic CSV / TXT</h4>
+        <p>Any comma/tab/semicolon-delimited file with a header row works. Column detection is case-insensitive and scans for these names:</p>
         <table>
           <thead><tr><th>Field</th><th>Recognized header names</th><th>Required?</th></tr></thead>
           <tbody>
-            <tr><td>Reference</td><td>Designator, RefDes, Reference, Name, Part, Component</td><td>Yes</td></tr>
-            <tr><td>Value</td><td>Value, Comment, Val, Description</td><td>No</td></tr>
+            <tr><td>Reference</td><td>Designator, RefDes, Reference, Ref, Name, Part, Component</td><td>Yes</td></tr>
+            <tr><td>Value</td><td>Value, Val, Comment, Description</td><td>No</td></tr>
             <tr><td>Package</td><td>Package, Footprint, Pattern, Pkg</td><td>No</td></tr>
-            <tr><td>X coord</td><td>Mid X, X, Center X, Loc X, Pos X, Ref X</td><td>Yes</td></tr>
-            <tr><td>Y coord</td><td>Mid Y, Y, Center Y, Loc Y, Pos Y, Ref Y</td><td>Yes</td></tr>
+            <tr><td>X coord</td><td>Mid X, X, Center X, Loc X, Pos X, PosX, Ref X</td><td>Yes</td></tr>
+            <tr><td>Y coord</td><td>Mid Y, Y, Center Y, Loc Y, Pos Y, PosY, Ref Y</td><td>Yes</td></tr>
             <tr><td>Rotation</td><td>Rotation, Rot, Angle, Orientation, Theta</td><td>Yes</td></tr>
             <tr><td>Side</td><td>Side, Layer, TB, Mirror</td><td>No</td></tr>
             <tr><td>DNP</td><td>DNP, DNI, Do Not Place/Populate/Install, Populate</td><td>No</td></tr>
           </tbody>
         </table>
         <p>The first <em>data row</em> is detected automatically — preamble lines like <code>[COMMENT]</code>, <code>Centroid Data for…</code>, and <code>[PLACEMENT]</code> are skipped before the header is identified.</p>
-
-        <div class="callout info"><b>EasyEDA users:</b> generate via <em>File → Export → Pick and Place File</em> (Std edition: <em>Top Menu → Fabrication → Pick and Place File</em>). EasyEDA exports as UTF-8 with a BOM and tab delimiters — the parser handles both transparently. The <code>Mid X</code>/<code>Mid Y</code> columns become the placement coords; <code>Ref X/Y</code> and <code>Pad X/Y</code> are ignored. Bottom-side parts are filtered out by default; change the Side dropdown on Step 1 if you need them.</div>
-
-        <div class="callout info"><b>KiCad users:</b> generate via <em>File → Fabrication Outputs → Component Placement (.pos) File</em> in the PCB Editor. Both output formats are supported:
-          <ul style="margin-top:6px;margin-bottom:0">
-            <li><b>CSV</b> (recommended) — comma-separated <code>.csv</code> file with headers <code>Ref,Val,Package,PosX,PosY,Rot,Side</code>.</li>
-            <li><b>Plain Text / ASCII</b> — whitespace-aligned <code>.pos</code> file with metadata header lines (<code>### Module positions</code>, <code>## Unit = mm</code>) and a <code>#</code>-prefixed column header. The parser recognizes this format and uses it directly.</li>
-          </ul>
-          Use <em>millimeters</em> as the unit. Set the board origin via <em>Place → Drill/Place File Origin</em> at the lower-left corner of your board first — otherwise coords will be relative to the page origin and you'll need a large X/Y offset on Step 4 to compensate.
-        </div>
 
         <h4>Coordinate units</h4>
         <p>Auto-detected from the magnitude of the X/Y values:</p>
@@ -1185,7 +1194,14 @@ footer{
 
         <h4>Step 2 — Feeder Mapping (optional)</h4>
         <p>One row per unique Value+Package pair, with two optional inputs: a <b>Feeder ID</b> and a <b>Nozzle</b> toggle. See the <a href="#h-mapping">Feeder mapping</a> section above for the full rationale.</p>
-        <p>Use the <b>Save config</b> button to write the current mapping to a JSON file. Use <b>Load config</b> to apply a saved mapping to this board (case-insensitive Value+Package match). <b>Clear all</b> wipes the current mapping (useful before loading a different config from scratch).</p>
+        <p>The toolbar has three buttons:</p>
+        <ul>
+          <li><b>↓ Save config</b> — write the current mapping to a JSON file (only the rows you've filled in are stored)</li>
+          <li><b>↑ Load config</b> — apply a saved JSON to the current board's mapping table (case-insensitive Value+Package match)</li>
+          <li><b>Clear all</b> — wipe the current mapping (useful before loading a different config from scratch)</li>
+        </ul>
+        <p>The Feeder ID input has a <b>color-coded left edge</b> so you can see at a glance which entries share a feeder number — the color is computed from the ID, so same number = same color across the whole table (and on Step 3).</p>
+        <p>The table paginates at <b>20 rows per page</b> for large projects. Editing a row on a non-first page commits the change in place without resetting your position.</p>
         <p>Skip this step entirely on a first pass — the mapping is optional, and unmapped part types just get auto-assigned defaults on Step 3.</p>
 
         <h4>Step 3 — Assign Feeders</h4>
@@ -1193,7 +1209,7 @@ footer{
         <ul>
           <li><b>X / Y</b> — placement coordinates in mm (per-placement)</li>
           <li><b>Rotation</b> — placement angle in degrees, CCW positive (per-placement)</li>
-          <li><b>Skip</b> — flags this individual placement as "don't place" in the DPV (per-placement; ticking on R1 doesn't affect R2)</li>
+          <li><b>Skip</b> — flags this individual placement as "don't place" — skipped rows are <em>omitted entirely</em> from the DPV output, not flagged for skip (the machine's documented skip flag is unreliable across firmware versions). Per-placement; ticking on R1 doesn't affect R2.</li>
           <li><b>Feeder</b> — station ID where the reel for this part type is loaded (1–99) — shared across same-type parts</li>
           <li><b>Nozzle</b> — N1 (left) for small parts, N2 (right) for larger ones — shared</li>
           <li><b>Tape pitch</b> — physical reel spacing in mm; see <a href="#h-tape">tape pitch reference</a> — shared</li>
@@ -1201,15 +1217,19 @@ footer{
           <li><b>Speed</b> — 0 means use machine default; raise above 0 only if the part needs slower handling — shared</li>
           <li><b>Vision</b> — on for ICs and fine-pitch; can turn off for very small passives — shared</li>
         </ul>
+        <p>The <b>Feeder column has color-coded left edges</b> — same color = same feeder ID, computed from a golden-angle hue formula so even adjacent IDs (5, 6, 7) are visually distinct. Same color carries over from Step 2's mapping table.</p>
         <p>Defaults: feeder/nozzle come from your Step 2 mapping if set; otherwise auto-assigned. Tape pitch, height, and nozzle (when not mapped) are guessed from the package name. The auto-assigner skips feeder IDs claimed by mappings, so no collisions sneak in.</p>
         <p>Click <b>RefDes</b>, <b>Value</b>, or <b>Package</b> column headers to sort. Click again to reverse, third time to return to insertion order. RefDes uses natural sort (R1 &lt; R2 &lt; R10). X / Y / Rotation columns are not sortable. Skipped placements always partition to the end of the table regardless of sort.</p>
         <p>The table is paged at <b>20 rows per page</b>. Use Prev / Next or the jump-to-page input. Sorting jumps you to page 1 with the new top of the order. A subtle background tint clusters same-part-type rows visually even when sorted by RefDes.</p>
 
         <h4>Step 4 — Board / Calib</h4>
-        <p>Set the X/Y offset if your file's origin isn't the PCB's lower-left corner; see <a href="#h-board">board origin</a> for details. Pick fiducial RefDes from the dropdowns; see <a href="#h-fiducials">fiducials &amp; calibration</a>.</p>
+        <p>Set the X/Y offset if your file's origin isn't the PCB's lower-left corner; see <a href="#h-board">board origin</a> for details.</p>
+        <p><b>Fiducials:</b> three cards (UL, LR, LL), each with a dropdown listing every RefDes plus <code>(none)</code> and <code>(custom — type X/Y manually)</code>. Selecting a RefDes auto-fills X/Y from that placement with the board offset already applied; the X/Y inputs become read-only. <code>(custom)</code> lets you type values manually. <code>(none)</code> zeroes the slot.</p>
+        <p>The converter <b>auto-detects fiducials on first arrival</b> at Step 4 and shows an <em>auto-detected</em> badge next to each card's label until you change the selection. See <a href="#h-fiducials">fiducials &amp; calibration</a> for the detection rules.</p>
 
         <h4>Step 5 — Review &amp; Export</h4>
         <p>The DPV preview shows exactly what will be written. Filename is editable. Download saves a plain-text <code>.dpv</code> file you can copy to a USB stick and load on the CHM-T36VA.</p>
+        <p>If your job has fewer than 2 active placements (after skip-filtering), an amber notice appears above the preview explaining that phantom <code>DUMMY</code> rows were added — the machine requires at least 2 EComponent rows for fiducial calibration to work.</p>
 
         <h3 id="h-feeders">Feeders &amp; nozzles</h3>
 
@@ -1298,7 +1318,7 @@ footer{
           <li><code>CalibFator</code> — placeholder (computed by machine)</li>
         </ol>
         <p>Coordinates are written with 2 decimal places (the machine truncates further digits anyway). Angles are normalized to (−180°, 180°].</p>
-        <div class="callout"><b>Spec quirk:</b> the machine requires at least 2 EComponent rows or it can't compute fiducial calibration. If your job has only one placement, the converter pads with a phantom skipped row to satisfy this requirement.</div>
+        <div class="callout"><b>Spec quirk:</b> the CHM-T36VA requires at least 2 EComponent rows or it can't compute the lower-right fiducial calibration. If your job has fewer than 2 active placements (after skip-filtering), the converter pads with phantom <code>DUMMY</code> rows to satisfy this requirement. Step 5 displays a notice when this happens so you don't get confused by the extra rows.</div>
 
         <h3 id="h-fieldmap">Column → DPV field map</h3>
         <p>What each column in the Assign Feeders table corresponds to in the generated DPV file:</p>
@@ -1316,7 +1336,7 @@ footer{
             <tr><td>Height</td><td>Station, EComponent</td><td>Height</td></tr>
             <tr><td>Speed</td><td>Station, EComponent</td><td>Speed</td></tr>
             <tr><td>Vision</td><td>Station, EComponent</td><td>Status (bit 4)</td></tr>
-            <tr><td>Skip</td><td>EComponent</td><td>Skip (bit 1 of Status)</td></tr>
+            <tr><td>Skip</td><td>(EComponent omitted)</td><td>Skipped placements aren't written to the DPV at all</td></tr>
           </tbody>
         </table>
 
@@ -1364,20 +1384,27 @@ footer{
         </ul>
 
         <h4>The machine reports placements off the board</h4>
-        <p>Usually a coordinate origin issue. Check Step 4's X/Y offset. If your Fusion file uses board-center origin, the offset should be about <em>(half board width, half board height)</em>.</p>
+        <p>Usually a coordinate origin issue. Check Step 4's X/Y offset. If your CAD file uses board-center origin, the offset should be about <em>(half board width, half board height)</em>.</p>
+
+        <h4>KiCad placements are wildly off (thousands of mm)</h4>
+        <p>You forgot to set <em>Place → Drill/Place File Origin</em> before exporting. KiCad uses the page origin (top-left of the sheet) by default, which is typically ~150mm to the upper-left of your board. Re-export after setting the origin to your board's lower-left corner.</p>
 
         <h4>"Duplicate feeder IDs assigned"</h4>
         <p>You've assigned the same feeder number to two different part groups. The DPV will still be generated but the machine will physically only have one reel at that station — the second part group will pick the wrong reel. Re-assign one of them to an unused feeder ID.</p>
+
+        <h4>Splash screen sticks around forever</h4>
+        <p>The splash auto-fades after 5 seconds. If it doesn't, JavaScript may have errored before the timer fired — open the browser console (F12) and check for errors. Hard-refresh the page (Ctrl+Shift+R / Cmd+Shift+R) if a previous load left things in a weird state.</p>
 
         <h3 id="h-shortcuts">Tips &amp; shortcuts</h3>
         <ul>
           <li><b>Hover any ⓘ icon</b> in column headers for a per-field reference card.</li>
           <li><b>Tab</b> moves between input fields on Step 3 — useful for quick keyboard entry of feeder IDs down a column.</li>
-          <li><b>Click "Load demo data"</b> on Step 1 to walk through the workflow without your own file.</li>
+          <li><b>Click "Load demo data"</b> on Step 1 to walk through the workflow without your own file. The demo includes 3 fiducials so you can preview Step 4's auto-detection.</li>
+          <li><b>Color-coded feeders:</b> the Feeder ID column on Steps 2 and 3 has a left-edge color stripe tied to the ID number. Same number = same color, so you can scan a long list for duplicates or sanity-check reel groupings at a glance.</li>
           <li><b>Sort by Package</b> on Step 3 to group similar parts together — useful for spotting inconsistencies in tape pitch or nozzle across rows of the same package.</li>
-          <li><b>Pagination:</b> the table on Step 3 shows 20 rows per page. Sorting always jumps to page 1 so the top of the new ordering is visible.</li>
-          <li><b>Skipped placements always partition to the end</b> of the table on Step 3, regardless of sort order. Skip is per-placement (per-row), not per-part-type.</li>
-          <li><b>Auto-detected fiducials:</b> if your file has <code>FID*</code>-named refdes, Step 4 picks them automatically and shows an <em>auto-detected</em> badge on each card until you change the selection.</li>
+          <li><b>Pagination:</b> Steps 2 and 3 show 20 rows per page. Sorting always jumps to page 1 so the top of the new ordering is visible.</li>
+          <li><b>Skipped placements always partition to the end</b> of the Step 3 table regardless of sort order. Skip is per-placement (per-row), not per-part-type.</li>
+          <li><b>Auto-detected fiducials:</b> if your file has <code>FID*</code>-named refdes (or values/packages starting with "FID"), Step 4 picks three automatically and shows an <em>auto-detected</em> badge on each card until you change the selection.</li>
           <li><b>Skip Step 2 entirely</b> on a first pass — feeder mapping is optional. The auto-assigner on Step 3 will give every part type a unique feeder ID.</li>
           <li><b>Esc closes this help panel.</b></li>
         </ul>
@@ -1398,7 +1425,7 @@ footer{
 </div>
 
 <footer>
-  <span><span id="footerVersion">DPV v1.3</span> · Top-side · MM · <a href="#" id="openLicense" style="color:var(--ink-faint);text-decoration:none;border-bottom:1px dotted var(--ink-faint)">MIT License</a> · <a href="https://github.com/geocentricllc/chm-t36va" target="_blank" rel="noopener noreferrer" class="footer-src" title="View source on GitHub"><svg class="footer-src-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>Source</a></span>
+  <span><span id="footerVersion">DPV v1.5</span> · Top-side · MM · <a href="#" id="openLicense" style="color:var(--ink-faint);text-decoration:none;border-bottom:1px dotted var(--ink-faint)">MIT License</a> · <a href="https://github.com/geocentricllc/chm-t36va" target="_blank" rel="noopener noreferrer" class="footer-src" title="View source on GitHub"><svg class="footer-src-icon" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>Source</a></span>
 </footer>
 
 </div>
@@ -1411,7 +1438,7 @@ footer{
 // Bumped semver-ish on each user-facing change. Reference this constant
 // anywhere a version string is needed; never hardcode the version literal.
 // ============================================================
-const APP_VERSION = "1.3";
+const APP_VERSION = "1.5";
 window.APP_VERSION = APP_VERSION;
 
 // Populate any version-display elements at parse time so the header and
@@ -3159,6 +3186,20 @@ document.getElementById('toStep5').addEventListener('click', ()=>{
   S.dpv = generateDPV();
   document.getElementById('dpvPreview').textContent = S.dpv;
   document.getElementById('finalStats').innerHTML = document.getElementById('statbar').innerHTML;
+  // Phantom-row notice — only visible when the spec-quirk padding kicked in
+  const phantomNotice = document.getElementById('phantomNotice');
+  const phantomText = document.getElementById('phantomNoticeText');
+  if(S._lastPhantomCount > 0){
+    const n = S._lastPhantomCount;
+    phantomText.textContent =
+      `${n} placeholder ${n===1?'row was':'rows were'} added to the EComponent table. ` +
+      `The CHM-T36VA needs at least 2 EComponent rows for the lower-right fiducial ` +
+      `to calibrate correctly; your file has fewer than 2 active placements after ` +
+      `skipping, so we padded the count.`;
+    phantomNotice.style.display = '';
+  } else {
+    phantomNotice.style.display = 'none';
+  }
   gotoStep(5);
 });
 
@@ -3236,15 +3277,25 @@ function generateDPV(){
 
   // ----- ECOMPONENT TABLE (placements) -----
   // Iterate S.parts (the per-placement source of truth, including any user edits
-  // to X/Y/rotation/skip) in current sort order. Skip flag is per-placement.
+  // to X/Y/rotation/skip) in current sort order.
+  //
+  // Skip handling: skipped placements are OMITTED from the EComponent table
+  // entirely. The CHM-T36VA's documented "Skip" bit-field flag (bit 0 of the
+  // status field) does not reliably suppress placement on all firmware
+  // versions — community tools (kicad2charmhigh, pnpconvert, etc.) consistently
+  // exclude skipped rows from the output instead. This guarantees the part
+  // physically isn't placed: the machine has no row to act on.
   lines.push("Table,No.,ID,PHead,STNo.,DeltX,DeltY,Angle,Height,Skip,Speed,Explain,Note,Delay");
   let ecIdx = 0;
   let placedCount = 0;
+  let skippedCount = 0;
   for(const part of S.parts){
+    if(part.skip){ skippedCount++; continue; }
     const g = findGroupForPart(part);
     if(!g) continue;
-    const skipFlag = part.skip ? 1 : 0;          // per-placement
-    let status = skipFlag;
+    // Status bit-field: vision flag (bit 2). Skip bit is unused here — skipped
+    // rows never reach this point.
+    let status = 0;
     if(g.settings.vision) status |= 4;
     const stationId = g.settings.feeder;
     const note = (g.value && g.package) ? `${g.value} ${g.package}` : (g.value || g.package || "part");
@@ -3262,14 +3313,19 @@ function generateDPV(){
       `${csvField(part.ref)},${csvField(note)},1`
     );
     ecIdx++;
-    if(!part.skip) placedCount++;
+    placedCount++;
   }
-  // Spec note: "you must define at least 2 components (EComponent data rows) to get the LR fiducial location to calibrate"
-  if(ecIdx < 2){
-    // Pad with a skipped phantom row to satisfy the bug
+  // Spec quirk: "you must define at least 2 components (EComponent data rows)
+  // to get the LR fiducial location to calibrate". If the user has fewer than 2
+  // active placements (after skip-filtering), pad with phantom skipped rows
+  // until we hit 2. Tracked so the export step can mention this to the user.
+  let phantomCount = 0;
+  while(ecIdx < 2){
     lines.push(`EComponent,${ecIdx},${ecIdx+1},1,1,0,0,0,0.5,1,0,DUMMY,placeholder,1`);
     ecIdx++;
+    phantomCount++;
   }
+  S._lastPhantomCount = phantomCount;
   lines.push("");
 
   // ----- IC TRAY (none used) -----

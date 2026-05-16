@@ -10,6 +10,8 @@ A free, browser-based tool that converts PCB pick-and-place files into `.dpv` wo
 
 Runs entirely in your browser. No uploads, no install, no telemetry. Save the page to disk and use it offline.
 
+> **Feedback & bug reports:** click the **Feedback** button in the top-right of the converter for a pre-filled email, or open a [GitHub issue](https://github.com/geocentricllc/chm-t36va/issues).
+
 ---
 
 ## Table of contents
@@ -184,7 +186,7 @@ The **Feeder column has color-coded left edges** — same color = same feeder ID
 
 **Sort:** click RefDes, Value, or Package column headers. X/Y/Rotation aren't sortable. Click a sortable header again to reverse, third time to return to insertion order. RefDes uses natural sort (R1 < R2 < R10).
 
-**Skip behavior:** ticking Skip on a row immediately moves it to the end of the table. Skipped rows always partition to the tail regardless of sort. Skip is per-placement, so ticking it on R1 doesn't affect R2.
+**Skip behavior:** ticking Skip on a row immediately moves it to the end of the table. Skipped rows always partition to the tail regardless of sort. Skip is per-placement, so ticking it on R1 doesn't affect R2. **Skipped placements are omitted entirely from the DPV output** — not flagged with the machine's skip-bit, which is unreliable across firmware versions. The row simply doesn't appear in the EComponent table.
 
 **Pagination:** the table shows 20 rows per page. Sorting always jumps to page 1 so the top of the new ordering is visible.
 
@@ -215,6 +217,8 @@ When auto-detected, each card shows a small **`auto-detected`** badge next to it
 ### Step 5 — Export DPV
 
 The DPV preview shows exactly what will be written. Filename is editable. Download saves a plain-text `.dpv` file ready to copy to a USB stick.
+
+**Phantom DUMMY rows:** if your job has fewer than 2 active placements (after skip-filtering), an amber notice appears above the preview explaining that phantom `DUMMY` rows were added. The CHM-T36VA requires at least 2 EComponent rows for the lower-right fiducial to calibrate correctly; with fewer than 2 active placements the converter pads the count automatically. The DUMMY rows are flagged so the machine ignores them — they have no physical effect on the run.
 
 ---
 
@@ -311,6 +315,9 @@ The converter currently outputs top-side only. Bottom-side parts in your file ar
 **Where does the user-visible version number come from?**
 A single `APP_VERSION` constant near the top of the script section. Bump that and both the header (`DPV V1.x`) and footer (`DPV v1.x`) update.
 
+**How do I send feedback or report a bug?**
+Click the **Feedback** button in the top-right of the converter — it opens a pre-filled email with the subject *"CHM-T36VA File Converter Feedback"*. Mention the version (shown in the footer as `DPV v1.x`) when reporting a bug. Or open a GitHub issue at the [repo](https://github.com/geocentricllc/chm-t36va).
+
 ---
 
 ## Troubleshooting
@@ -330,6 +337,9 @@ The diagnostic alert breaks down where every row went. Most common causes:
 
 **"Duplicate feeder IDs assigned"**
 Two part types are pointing at the same feeder. The DPV will still generate, but the machine will physically have only one reel at that station and pick the wrong one for half the parts. Re-assign one to an unused feeder ID on Step 2 or Step 3.
+
+**My DPV has `DUMMY` rows in it.**
+Expected — the CHM-T36VA needs at least 2 EComponent rows for the lower-right fiducial to calibrate correctly. If your job has fewer than 2 active placements (after skipping), the converter pads with phantom DUMMY rows to satisfy this requirement. Step 5 shows a notice when this happens. The DUMMY rows are flagged so the machine ignores them — they don't cause any physical placement.
 
 **The KiCad `.pos` file's coordinates are wildly off.**
 You forgot to set *Place → Drill/Place File Origin* before exporting. KiCad uses the page origin (top-left of the sheet) by default, which is typically ~150mm to the upper-left of your board. Re-export after setting the origin to your board's lower-left corner.
