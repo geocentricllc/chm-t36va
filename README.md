@@ -32,6 +32,7 @@ Runs entirely in your browser. No uploads, no install, no telemetry. Save the pa
   - [Step 5 — Export DPV](#step-5--export-dpv)
 - [CHM-T36VA reference](#chm-t36va-reference)
   - [Station ID ranges](#station-id-ranges)
+  - [IC trays](#ic-trays)
   - [Nozzle selection](#nozzle-selection)
   - [Tape pitch reference](#tape-pitch-reference)
 - [Saving and reusing feeder configs](#saving-and-reusing-feeder-configs)
@@ -119,13 +120,21 @@ The override dropdowns on Step 1 let you correct the auto-detection if the heuri
 
 ### Coordinate units
 
-Auto-detected from the magnitude of X/Y values:
+The unit is read from the file whenever the file states one. Three places count as a statement, checked in this order:
+
+1. **A metadata line** — KiCad's `## Unit = mm, Angle = deg.`, or anything of the form `Unit: <name>` in the first 40 lines
+2. **A unit on the X/Y column header** — Altium's `Center-X(mm)`, or `Mid X (mm)`, `PosX [mil]`
+3. **A unit suffix on the values** — EasyEDA's `12.5mm`
+
+`mm` / `millimeters`, `mil` / `mils` / `thou`, and `in` / `inch` / `inches` / `"` are all recognized. A header carrying a unit is matched to its field with the annotation removed, so `Center-X(mm)` is found as an X column rather than going undetected.
+
+Only when the file declares nothing does the converter fall back to the magnitude of the coordinates, measured across **every** row:
 
 - Max coordinate < 13 → **inches**
 - Max coordinate ≤ 300 → **millimeters**
 - Max coordinate > 300 → **mils** (1/1000 inch)
 
-The override dropdown lets you correct this for unusual cases.
+That fallback is still a guess, and it gets an undeclared board under roughly 13 mm across wrong, reading it as inches. With a centre origin the test sees half the board, so the threshold is effectively a 26 mm board. The Step 1 summary names the unit, says where it came from, and prints the board size that results, so a bad guess is visible before you continue. The override dropdown corrects it.
 
 ---
 
@@ -133,7 +142,17 @@ The override dropdown lets you correct this for unusual cases.
 
 ### Step 1 — Load file
 
-Drop or click to browse. After parsing, you'll see file stats and a one-line summary of which columns mapped to what. For most files, just hit **Continue**.
+Drop or click to browse. After parsing, you'll see file stats and a one-line summary. It names the column each field mapped to, then reports which unit the coordinates were read as, where that unit came from, and the board that produces — overall size, plus the X and Y range:
+
+```
+RefDes: Designator · X/Y: Mid X / Mid Y · Rot: Rotation · Value: Comment ·
+Package: Footprint · Side: Layer · Read as: millimeters from coordinate size ·
+Board: 40.0 × 23.0 mm · X 2.0 → 42.0 · Y 2.0 → 25.0
+```
+
+For most files, just hit **Continue**.
+
+**Glance at the board size first.** The summary says where the unit came from. "declared in the file", "the column header" and "the value suffix" mean the file stated it outright; "coordinate size" means it was guessed, and that is when the board figure is worth a look. A board you know to be 12 × 10 mm reported as 221 × 140 mm was read as inches; switch Coordinate Units to Millimeters and the figure corrects itself as you change it. The same line catches an unset CAD origin: an X range starting in the hundreds means the coordinates are measured from the page corner rather than the board corner.
 
 Touch the override dropdowns when:
 
@@ -214,6 +233,8 @@ When auto-detected, each card shows a small **`auto-detected`** badge next to it
 
 > Calibrating on the machine is still standard practice. Even with fiducial coords set in the DPV, you'll typically jog the camera to each physical mark at the machine, which writes the actual position. The DPV's fiducial values are a starting hint, not the final word.
 
+**IC tray geometry** — if any part is assigned a station in the **80–99** range, a card appears for each of those stations below the fiducials. Fill in the centre of the first and last cavity, the number of columns and rows, and the first cavity to use. A live readout shows cavities against parts needing them, so a tray that will run dry is visible before you export. The block is hidden entirely when no tray station is in use. See [IC trays](#ic-trays) for what the numbers mean.
+
 ### Step 5 — Export DPV
 
 The DPV preview shows exactly what will be written. Filename is editable. Download saves a plain-text `.dpv` file ready to copy to a USB stick.
@@ -234,7 +255,32 @@ The DPV preview shows exactly what will be written. Filename is editable. Downlo
 | 75–79 | — | Not used / reserved |
 | 80–99 | IC trays | Matrix-tray ICs (waffle pack) |
 
-The converter accepts any value 1–99. The duplicate-feeder warning at Step 3 → Step 4 catches collisions before you generate the DPV.
+The converter accepts any value 1–99. The duplicate-feeder warning at Step 3 → Step 4 catches collisions before you generate the DPV. Stations in the 80–99 range also need a tray definition — see [IC trays](#ic-trays).
+
+### IC trays
+
+Two station ranges hold trays, and they are different mechanisms.
+
+**60–74 — the fixed front tray.** Built into the machine, one part per station ID. A station ID here is a single pocket, not a grid. The machine already knows where its own pockets are, so the DPV needs nothing beyond the `Station` row. Assign parts to these stations and the converter's output is complete as it stands.
+
+**80–99 — trays you supply.** You position these yourself, so the machine cannot know their layout. One station ID is one whole tray: a grid of cavities described by the DPV's `ICTray` table, which the converter writes from the Step 4 cards.
+
+| Field on the card | DPV column | Meaning |
+|---|---|---|
+| First cavity X / Y | `CenterX`, `CenterY` | Centre of cavity 0 |
+| Last cavity X / Y | `IntervalX`, `IntervalY` | Centre of the last cavity |
+| Columns / Rows | `NumX`, `NumY` | Grid size |
+| Start cavity | `Start` | First cavity to pick from, row major, left to right, bottom to top |
+
+Note the third row. The DPV columns are named `IntervalX` and `IntervalY` but hold the **last cavity centre**, not a spacing. The machine interpolates the grid between the first and last centres. The card labels say first and last for that reason.
+
+These are **machine coordinates**. The Step 4 board X/Y offset shifts placements and fiducials; it deliberately does not touch tray coordinates.
+
+As with fiducials, the values written are a starting hint. Calibrate on the machine under *Run → Edit → IC Trays → First/Last Position*.
+
+One physical tray can be divided into several virtual trays with separate station IDs, so more than one card can describe one piece of plastic.
+
+Tape pitch does not apply to any tray station, front or rear, so the converter disables that column on Step 3 for those rows rather than showing a guess the machine ignores.
 
 ### Nozzle selection
 
@@ -268,7 +314,9 @@ The whole point of Step 2 is making your work reusable. The Save Config / Load C
 
 ### What's stored
 
-Only **feeder ID and nozzle**, keyed by Value+Package. Tape pitch, height, speed, and vision are not saved — they're auto-guessed from package names on every board, which is correct since they depend on the part footprint, not the project. Per-placement coordinates are also not stored — those are board-specific.
+Only **feeder ID and nozzle**, keyed by Value+Package, plus **IC tray geometry** keyed by station. Tape pitch, height, speed, and vision are not saved — they're auto-guessed from package names on every board, which is correct since they depend on the part footprint, not the project. Per-placement coordinates are also not stored — those are board-specific.
+
+Tray geometry describes your machine rather than your board, so it belongs in the same file and carries to the next job. Every tray the tool knows about is saved, not just the ones the current board happens to use, so loading a config restores your whole tray setup.
 
 ### How matching works on Load
 
@@ -285,7 +333,7 @@ Only **feeder ID and nozzle**, keyed by Value+Package. Tape pitch, height, speed
 
 ### Old config compatibility
 
-Older versions of this tool saved richer configs (tape pitch, height, etc.). Those files still load fine — extra fields are silently ignored. Feeder ID and nozzle still apply correctly.
+Older versions of this tool saved richer configs (tape pitch, height, etc.). Those files still load fine — extra fields are silently ignored. Feeder ID and nozzle still apply correctly. Configs saved before IC tray support simply carry no tray definitions; nothing else changes.
 
 ---
 
