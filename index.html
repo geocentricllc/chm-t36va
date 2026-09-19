@@ -610,6 +610,28 @@ tr.removing td{animation:rowOut .18s forwards}
   background:#0a0b0e;border-color:var(--line-soft);color:var(--ink-dim);cursor:not-allowed;
 }
 
+/* IC TRAY CARDS (Step 4) — same shell as the fiducial cards, on a wider grid so
+   six geometry fields fit without cramping. */
+/* auto-fill with a capped column, not 1fr: a single tray card then keeps a
+   sensible width instead of stretching the six fields across the whole panel. */
+.tray-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,440px));gap:12px;margin-bottom:14px}
+.tray-coords{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tray-coords.three{grid-template-columns:1fr 1fr 1fr}
+/* min-width:0 because a grid item defaults to min-width:auto, which stops the
+   number inputs shrinking and pushes the three-column row out of the card. */
+.tray-coords label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.tray-coords label span{
+  font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-dim);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.tray-coords input{
+  font-family:'JetBrains Mono',monospace;font-size:12px;
+  font-variant-numeric:tabular-nums;
+  width:100%;min-width:0;
+}
+.tray-cap{font-size:11px;letter-spacing:.04em;color:var(--ink-dim)}
+.tray-cap.short{color:var(--amber)}
+
 /* SUMMARY STAT BAR */
 .statbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);margin-bottom:18px}
 .statbar .stat{background:var(--panel);padding:14px 16px}
@@ -1049,6 +1071,14 @@ footer{
       </div>
     </div>
 
+    <div id="traySection" class="hidden">
+      <div style="margin-top:14px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px">IC Tray Geometry</div>
+      <div style="font-size:11.5px;color:var(--ink-dim);margin-bottom:10px;line-height:1.55">
+        One card per station in the <b>80–99</b> range used by this board. You supply these trays, so the machine cannot know their layout: give it the centre of the <b>first</b> and <b>last</b> cavity plus the grid size. Values are <b>machine coordinates</b> and are <b>not</b> shifted by the board X/Y offset above. Like fiducials they are a starting hint — calibrate on the machine under <i>Run → Edit → IC Trays → First/Last Position</i>. Front-tray stations (60–74) need nothing here; those pockets are built into the machine.
+      </div>
+      <div class="tray-grid" id="trayGrid"></div>
+    </div>
+
     <div style="margin-top:14px;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-dim);margin-bottom:8px">Output File Name</div>
     <div class="form-row">
       <label><span>DPV Filename</span><input type="text" id="dpvName" value="board.dpv"></label>
@@ -1099,6 +1129,7 @@ footer{
         <a href="#h-tape">Tape pitch reference</a>
         <a href="#h-board">Board origin &amp; rotation</a>
         <a href="#h-fiducials">Fiducials &amp; calibration</a>
+        <a href="#h-trays">IC trays</a>
         <a href="#h-dpv">DPV file format</a>
         <a href="#h-fieldmap">Column → DPV field map</a>
         <a href="#h-config">Saving feeder configs</a>
@@ -1238,6 +1269,9 @@ footer{
         <p><b>Fiducials:</b> three cards (UL, LR, LL), each with a dropdown listing every RefDes plus <code>(none)</code> and <code>(custom — type X/Y manually)</code>. Selecting a RefDes auto-fills X/Y from that placement with the board offset already applied; the X/Y inputs become read-only. <code>(custom)</code> lets you type values manually. <code>(none)</code> zeroes the slot.</p>
         <p>The converter <b>auto-detects fiducials on first arrival</b> at Step 4 and shows an <em>auto-detected</em> badge next to each card's label until you change the selection. See <a href="#h-fiducials">fiducials &amp; calibration</a> for the detection rules.</p>
 
+        <h4>Step 4b — IC tray geometry</h4>
+        <p>If any part sits on a station in the <b>80–99</b> range, a card appears for it below the fiducials with six fields: first and last cavity centre, columns, rows and start cavity. A live readout compares cavities against the parts that need them. The block stays hidden when no tray station is in use. See <a href="#h-trays">IC trays</a> for what each field means.</p>
+
         <h4>Step 5 — Review &amp; Export</h4>
         <p>The DPV preview shows exactly what will be written. Filename is editable. Download saves a plain-text <code>.dpv</code> file you can copy to a USB stick and load on the CHM-T36VA.</p>
         <p>If your job has fewer than 2 active placements (after skip-filtering), an amber notice appears above the preview explaining that phantom <code>DUMMY</code> rows were added — the machine requires at least 2 EComponent rows for fiducial calibration to work.</p>
@@ -1255,7 +1289,7 @@ footer{
             <tr><td>80–99</td><td>IC trays</td><td>For matrix-tray ICs (waffle pack)</td></tr>
           </tbody>
         </table>
-        <p>Use any unused number — the converter validates that each non-skipped part group has a unique feeder ID and warns about duplicates before generating the DPV.</p>
+        <p>Use any unused number — the converter validates that each non-skipped part group has a unique feeder ID and warns about duplicates before generating the DPV. Stations in the 80–99 range also need a tray definition; see <a href="#h-trays">IC trays</a>.</p>
 
         <h4>Nozzle selection</h4>
         <p>The CHM-T36VA has two nozzles mounted side by side, named <b>N1</b> (left) and <b>N2</b> (right). Each can be a different physical nozzle (CN040, CN065, CN140, etc.) — you switch nozzles on the machine when changing what's mounted.</p>
@@ -1317,6 +1351,25 @@ footer{
         <p>Coordinates flowing into the DPV's <code>CalibPoint</code> section are the placement's raw X/Y plus the board offset above. Changing the offset live-updates the displayed fiducial coordinates so what you see on Step 4 is what gets written.</p>
         <div class="callout info"><b>Calibrating on the machine.</b> Even with fiducial coordinates set in the DPV, standard practice is to calibrate at the machine: load the DPV, jog the camera to each physical fiducial mark, and the machine records the actual position. The DPV's fiducial values are a starting hint, not the final word.</div>
 
+        <h3 id="h-trays">IC trays</h3>
+        <p>Two station ranges hold trays, and they work differently.</p>
+        <p><b>60–74 — the fixed front tray.</b> Built into the machine, one part per station ID. A station ID here is a single pocket, not a grid, and the machine already knows where its own pockets are. Nothing extra goes in the file: the <code>Station</code> row is the whole story. Parts on these stations export completely with no further setup.</p>
+        <p><b>80–99 — trays you supply.</b> You position these yourself, so the machine cannot know their layout. One station ID is one whole tray, a grid of cavities, written to the DPV's <code>ICTray</code> table from the cards on Step 4.</p>
+        <table>
+          <thead><tr><th>Field on the card</th><th>DPV column</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td>First cavity X / Y</td><td><code>CenterX</code>, <code>CenterY</code></td><td>Centre of cavity 0</td></tr>
+            <tr><td>Last cavity X / Y</td><td><code>IntervalX</code>, <code>IntervalY</code></td><td>Centre of the last cavity</td></tr>
+            <tr><td>Columns / Rows</td><td><code>NumX</code>, <code>NumY</code></td><td>Grid size</td></tr>
+            <tr><td>Start cavity</td><td><code>Start</code></td><td>First cavity to pick from — row major, left to right, bottom to top</td></tr>
+          </tbody>
+        </table>
+        <div class="callout"><b>The Interval columns are misnamed.</b> <code>IntervalX</code> and <code>IntervalY</code> hold the <i>last cavity centre</i>, not a spacing between cavities. The machine interpolates the grid between the first and last centres. The card labels say first and last to keep this straight.</div>
+        <p>Tray values are <b>machine coordinates</b>. The board X/Y offset on Step 4 moves placements and fiducials; it deliberately leaves tray coordinates alone.</p>
+        <p>As with fiducials, what gets written is a starting hint — calibrate on the machine under <i>Run → Edit → IC Trays → First/Last Position</i>. One physical tray can also be split into several virtual trays with separate station IDs, so more than one card may describe one piece of plastic.</p>
+        <p>Before export the converter checks each tray. A start cavity outside the grid blocks the export. A tray with no positions set, a tray whose first and last cavity are the same point, or a tray with fewer usable cavities than parts to pick all raise a warning you can accept or go back and fix.</p>
+        <p>Tape pitch is meaningless on any tray station, front or rear, so Step 3 disables that input for those rows rather than showing a guess the machine ignores.</p>
+
         <h3 id="h-dpv">DPV file format</h3>
         <p>The <code>.dpv</code> file is plain text, CRLF line endings, structured as labeled sections. The CHM-T36VA reads it from a USB stick. Generated files have these sections in order:</p>
         <ol>
@@ -1324,6 +1377,7 @@ footer{
           <li><code>Station</code> rows — one per non-skipped part group</li>
           <li><code>Panel_Array</code> — single board (1×1) by default</li>
           <li><code>EComponent</code> rows — one per placement (RefDes-level)</li>
+          <li><code>ICTray</code> rows — one per tray station in 80–99, omitted entirely when none is used</li>
           <li><code>PcbCalib</code> — placeholder (set on machine)</li>
           <li><code>CalibPoint</code> rows — three fiducial entries</li>
           <li><code>CalibFator</code> — placeholder (computed by machine)</li>
@@ -1352,6 +1406,7 @@ footer{
         </table>
 
         <h3 id="h-config">Saving feeder configs</h3>
+        <p>Saved configs carry IC tray geometry alongside the feeder and nozzle mapping. Tray layout describes your machine rather than your board, so every tray the tool knows about is written, not just the ones the current board uses. Configs saved before tray support still load; they simply carry no trays.</p>
         <p>On Step 2, the <b>↓ Save config</b> button exports your current Value+Package → Feeder/Nozzle mapping to a JSON file. The <b>↑ Load config</b> button applies a saved JSON to the current board's mapping table.</p>
 
         <h4>What's stored</h4>
@@ -1495,6 +1550,7 @@ const S = {
   uniqueParts: [],  // [{val, pkg, count, key}] — populated for Step 2 mapping table
   feederMap: new Map(),  // key (val|pkg lowercased) → {feeder, nozzle} — defaults for Step 3
   groups: [],       // {key,value,package,refs:[],settings:{...}}
+  trays: new Map(), // station id (80–99) -> {firstX,firstY,lastX,lastY,numX,numY,start}
   groupByRef: false,// true when the file carries no Value and no Package column at
                     // all; each placement then becomes its own group, keyed by refdes
   board: {offX:0,offY:0,rotOff:0,fid:{ulX:0,ulY:0,lrX:0,lrY:0,llX:0,llY:0,ulRef:"",lrRef:"",llRef:""},dpvName:"board.dpv"},
@@ -2673,6 +2729,168 @@ function resolveFiducialCoords(k){
   }
 })();
 
+/* ============================================================
+   IC TRAYS (Step 4)
+   Two station ranges on the CHM-T36VA hold trays, and only one of them puts
+   anything in the file:
+     60–74  Fixed front tray. 14 pockets built into the machine, one part per
+            station ID. The Station row is the whole story — the machine
+            already knows where its own pockets are.
+     80–99  Trays you supply and position yourself. One station ID is one whole
+            tray: a grid of cavities the machine cannot know about. That layout
+            is what the DPV's ICTray table carries.
+   So everything below concerns 80–99 only.
+============================================================ */
+const FRONT_TRAY_MIN = 60, FRONT_TRAY_MAX = 74;
+const TRAY_MIN = 80, TRAY_MAX = 99;
+
+function isMatrixTray(id){ return isFinite(id) && id >= TRAY_MIN && id <= TRAY_MAX; }
+function isFrontTray(id){ return isFinite(id) && id >= FRONT_TRAY_MIN && id <= FRONT_TRAY_MAX; }
+function isTrayStation(id){ return isMatrixTray(id) || isFrontTray(id); }
+
+/* Geometry for one tray, created on demand. The default is a 1x1 tray at the
+   origin, which is never written silently: the export warns about a tray whose
+   cavity positions were left unset. */
+function getTray(id){
+  let t = S.trays.get(id);
+  if(!t){
+    t = {firstX:0, firstY:0, lastX:0, lastY:0, numX:1, numY:1, start:0};
+    S.trays.set(id, t);
+  }
+  return t;
+}
+
+/* Matrix-tray stations this board actually draws from, each with the part types
+   on it and the number of placements it must supply. Sorted by station. */
+function trayStationsInUse(){
+  const counts = activePlacementsByStation();
+  const byStation = new Map();
+  for(const g of activeGroups()){
+    const id = g.settings.feeder;
+    if(!isMatrixTray(id)) continue;
+    if(!byStation.has(id)) byStation.set(id, {station:id, parts:[], placements: counts.get(id) || 0});
+    byStation.get(id).parts.push(groupNote(g));
+  }
+  return Array.from(byStation.values()).sort((a, b) => a.station - b.station);
+}
+
+function renderTrayCards(){
+  const section = document.getElementById('traySection');
+  const grid = document.getElementById('trayGrid');
+  if(!section || !grid) return;
+
+  const trays = trayStationsInUse();
+  // Nothing in 80–99 on this board: the whole block stays out of the way.
+  section.classList.toggle('hidden', trays.length === 0);
+  grid.innerHTML = '';
+  if(!trays.length) return;
+
+  for(const t of trays){
+    const g = getTray(t.station);
+    const card = document.createElement('div');
+    card.className = 'fid-card';
+    // "Last cavity" is deliberate wording: the DPV columns for it are named
+    // IntervalX/IntervalY, but the spec defines them as the last cavity centre.
+    card.innerHTML = `
+      <div class="fid-label">Station ${t.station} <span class="fid-hint">${escapeHtml(t.parts.join(', '))}</span></div>
+      <div class="tray-coords">
+        <label><span>First cavity X</span><input type="number" step="0.01" data-tray="${t.station}" data-tf="firstX" value="${g.firstX}"></label>
+        <label><span>First cavity Y</span><input type="number" step="0.01" data-tray="${t.station}" data-tf="firstY" value="${g.firstY}"></label>
+        <label><span>Last cavity X</span><input type="number" step="0.01" data-tray="${t.station}" data-tf="lastX" value="${g.lastX}"></label>
+        <label><span>Last cavity Y</span><input type="number" step="0.01" data-tray="${t.station}" data-tf="lastY" value="${g.lastY}"></label>
+      </div>
+      <div class="tray-coords three">
+        <label><span>Columns</span><input type="number" min="1" step="1" data-tray="${t.station}" data-tf="numX" value="${g.numX}"></label>
+        <label><span>Rows</span><input type="number" min="1" step="1" data-tray="${t.station}" data-tf="numY" value="${g.numY}"></label>
+        <label><span>Start cavity</span><input type="number" min="0" step="1" data-tray="${t.station}" data-tf="start" value="${g.start}"></label>
+      </div>
+      <div class="tray-cap" data-traycap="${t.station}"></div>
+    `;
+    grid.appendChild(card);
+  }
+
+  wireTrayInputs();
+  for(const t of trays) updateTrayCapacity(t.station, t.placements);
+}
+
+/* Cavity count against parts needed, so a tray that will run dry is visible
+   here rather than halfway through a run. */
+function updateTrayCapacity(station, placements){
+  const el = document.querySelector(`[data-traycap="${station}"]`);
+  if(!el) return;
+  const g = getTray(station);
+  const need = (placements === undefined)
+    ? ((trayStationsInUse().find(t => t.station === station) || {}).placements || 0)
+    : placements;
+  const cavities = Math.max(0, g.numX) * Math.max(0, g.numY);
+  const usable = Math.max(0, cavities - g.start);
+  el.textContent =
+    `${cavities} cavit${cavities === 1 ? 'y' : 'ies'} · ` +
+    `${usable} usable from cavity ${g.start} · ` +
+    `${need} part${need === 1 ? '' : 's'} to pick`;
+  el.classList.toggle('short', usable < need);
+}
+
+function wireTrayInputs(){
+  document.querySelectorAll('#trayGrid input[data-tray]').forEach(el => {
+    const commit = e => {
+      const station = +e.target.dataset.tray;
+      const field = e.target.dataset.tf;
+      const t = getTray(station);
+      const v = parseFloat(e.target.value);
+      if(field === 'numX' || field === 'numY'){
+        t[field] = isFinite(v) ? Math.max(1, Math.round(v)) : 1;
+      } else if(field === 'start'){
+        t[field] = isFinite(v) ? Math.max(0, Math.round(v)) : 0;
+      } else {
+        t[field] = isFinite(v) ? v : 0;   // coordinates may legitimately be 0
+      }
+      updateTrayCapacity(station);
+    };
+    el.addEventListener('change', commit);
+    el.addEventListener('input', commit);
+  });
+}
+
+/* Pre-export checks. Blocks only where the row would be meaningless; anything
+   the operator can still put right at the machine is a warning, matching how
+   the duplicate-feeder prompt behaves. Returns false to cancel the export. */
+function validateTrays(){
+  const trays = trayStationsInUse();
+
+  for(const t of trays){
+    const g = getTray(t.station);
+    if(!(g.numX >= 1 && g.numY >= 1)){
+      alert(`IC tray on station ${t.station} needs at least one column and one row.`);
+      return false;
+    }
+    const cavities = g.numX * g.numY;
+    if(!(g.start >= 0 && g.start < cavities)){
+      alert(`IC tray on station ${t.station}: start cavity ${g.start} is outside the range 0–${cavities - 1}.`);
+      return false;
+    }
+  }
+
+  const warn = [];
+  for(const t of trays){
+    const g = getTray(t.station);
+    const cavities = g.numX * g.numY;
+    const usable = cavities - g.start;
+    if(!g.firstX && !g.firstY && !g.lastX && !g.lastY){
+      warn.push(`Station ${t.station} has no cavity positions set — the tray will have to be located at the machine.`);
+    } else if(cavities > 1 && g.firstX === g.lastX && g.firstY === g.lastY){
+      warn.push(`Station ${t.station}: the first and last cavity are the same point, so all ${cavities} cavities resolve to one spot.`);
+    }
+    if(usable < t.placements){
+      warn.push(`Station ${t.station}: ${usable} usable cavit${usable === 1 ? 'y' : 'ies'} but ${t.placements} part${t.placements === 1 ? '' : 's'} to pick.`);
+    }
+  }
+  if(warn.length){
+    return confirm("IC tray warnings:\n\n• " + warn.join("\n• ") + "\n\nGenerate the DPV anyway?");
+  }
+  return true;
+}
+
 function buildGroups(){
   const map = new Map();
   const haveVal = S.parts.some(p => p.val);
@@ -2938,6 +3156,38 @@ function findGroupForPart(p){
   return S.groups.find(g => g.key === key) || null;
 }
 
+/* The groups that will actually be picked: at least one placement not skipped.
+   The station writer, the Step 3 -> 4 feeder validation and IC tray discovery
+   all read this one function, so they cannot disagree about which stations are
+   in use — they previously computed it two different ways. */
+function activeGroups(){
+  const seen = new Set();
+  for(const p of S.parts){
+    if(p.skip) continue;
+    const g = findGroupForPart(p);
+    if(g) seen.add(g);
+  }
+  return seen;
+}
+
+// How many placements each station has to supply, skipped ones excluded.
+function activePlacementsByStation(){
+  const counts = new Map();
+  for(const p of S.parts){
+    if(p.skip) continue;
+    const g = findGroupForPart(p);
+    if(!g) continue;
+    const id = g.settings.feeder;
+    counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  return counts;
+}
+
+// The human label for a group, used in Station/EComponent notes and tray cards.
+function groupNote(g){
+  return (g.value && g.package) ? `${g.value} ${g.package}` : (g.value || g.package || "part");
+}
+
 /* ============================================================
    PER-PLACEMENT TABLE RENDERER
    - One row per part in S.parts (after sort).
@@ -3027,7 +3277,7 @@ function renderRows(){
           <button type="button" data-nz="2" class="${g.settings.nozzle===2?'on':''}" title="Nozzle 2 (right) — larger parts">N2</button>
         </div>
       </td>
-      <td><input type="number" class="small" min="0" step="2" value="${g.settings.feedRate}" data-gkey="${escapeAttr(g.key)}" data-f="feedRate"></td>
+      <td><input type="number" class="small" min="0" step="2" value="${g.settings.feedRate}" data-gkey="${escapeAttr(g.key)}" data-f="feedRate"${pitchAttrs(g)}></td>
       <td><input type="number" class="small" step="0.1" value="${g.settings.height}" data-gkey="${escapeAttr(g.key)}" data-f="height"></td>
       <td><input type="number" class="small" min="0" max="100" step="5" value="${g.settings.speed}" data-gkey="${escapeAttr(g.key)}" data-f="speed"></td>
       <td class="always-on"><label class="chk"><input type="checkbox" ${g.settings.vision?'checked':''} data-gkey="${escapeAttr(g.key)}" data-f="vision"><span class="box"></span></label></td>
@@ -3043,6 +3293,16 @@ function renderRows(){
 
 // Backwards-compat alias so older callers still work
 function renderGroups(){ renderRows(); }
+
+/* Tape pitch means nothing on a tray station — the machine advances no tape —
+   so the input is disabled rather than left showing a guess from the package
+   name. Kept as one helper because renderRows() and the live feeder edit both
+   need the same decision. */
+function pitchAttrs(g){
+  return isTrayStation(g.settings.feeder)
+    ? ' disabled title="Ignored on IC tray stations — no tape to advance"'
+    : '';
+}
 
 function fmtCoord(n){
   if(!isFinite(n)) return "0";
@@ -3086,6 +3346,16 @@ function wireRowHandlers(tb){
       // update the OTHER rows' inputs to match — don't full re-render so the
       // active input keeps focus. Vision (checkbox) needs no extra work since
       // each row's checkbox is already independent and the model is updated.
+      // Moving a part on or off a tray station changes whether tape pitch
+      // applies, and we don't re-render here (it would steal focus), so toggle
+      // the pitch inputs for this group directly.
+      if(f === 'feeder'){
+        const trayNow = isTrayStation(g.settings.feeder);
+        tb.querySelectorAll(`input[data-gkey="${cssEscape(gkey)}"][data-f="feedRate"]`).forEach(inp => {
+          inp.disabled = trayNow;
+          inp.title = trayNow ? "Ignored on IC tray stations — no tape to advance" : "";
+        });
+      }
       if(e.target.type !== 'checkbox'){
         tb.querySelectorAll(`input[data-gkey="${cssEscape(gkey)}"][data-f="${f}"]`).forEach(input => {
           if(input !== e.target && parseFloat(input.value) !== g.settings[f]){
@@ -3226,12 +3496,29 @@ function buildConfigPayload(){
     if(m.nozzle === 1 || m.nozzle === 2) e.nozzle = m.nozzle;
     entries.push(e);
   }
+  /* Tray geometry describes the machine, not the board, so it belongs in the
+     same file as the reel assignments and should survive to the next job. Every
+     tray we know about is saved, not just the ones this board happens to use. */
+  const trays = [];
+  for(const [station, t] of S.trays){
+    if(!isMatrixTray(station)) continue;
+    trays.push({
+      station,
+      firstX: t.firstX, firstY: t.firstY,
+      lastX:  t.lastX,  lastY:  t.lastY,
+      numX:   t.numX,   numY:   t.numY,
+      start:  t.start
+    });
+  }
+  trays.sort((a, b) => a.station - b.station);
+
   return {
     format: "chmt-feeder-config",
-    version: 2,             // bumped: now mapping-only, not full settings
+    version: 3,             // 2 was mapping-only; 3 adds IC tray geometry
     savedAt: new Date().toISOString(),
     sourceFile: S.filename || "",
-    entries
+    entries,
+    trays
   };
 }
 
@@ -3307,6 +3594,26 @@ function applyConfigPayload(text, filename){
     }
   }
 
+  /* IC tray geometry, absent from version 2 files, which stay loadable. Trays
+     for stations this board doesn't use are kept too — they are machine setup,
+     and dropping them would quietly lose the operator's calibration. */
+  let traysLoaded = 0;
+  if(Array.isArray(payload.trays)){
+    const num = (v, dflt) => { const n = parseFloat(v); return isFinite(n) ? n : dflt; };
+    for(const t of payload.trays){
+      const id = Math.round(num(t.station, NaN));
+      if(!isMatrixTray(id)) continue;
+      S.trays.set(id, {
+        firstX: num(t.firstX, 0), firstY: num(t.firstY, 0),
+        lastX:  num(t.lastX, 0),  lastY:  num(t.lastY, 0),
+        numX: Math.max(1, Math.round(num(t.numX, 1))),
+        numY: Math.max(1, Math.round(num(t.numY, 1))),
+        start: Math.max(0, Math.round(num(t.start, 0)))
+      });
+      traysLoaded++;
+    }
+  }
+
   // Re-render the mapping table to reflect the loaded values
   renderMappingTable();
 
@@ -3316,6 +3623,7 @@ function applyConfigPayload(text, filename){
   lines.push(`Saved on ${payload.savedAt || 'unknown date'}${payload.sourceFile ? ' from ' + payload.sourceFile : ''}`);
   lines.push("");
   lines.push(`✓ Applied to ${applied} part type${applied===1?'':'s'} on this board.`);
+  if(traysLoaded > 0) lines.push(`✓ Loaded ${traysLoaded} IC tray definition${traysLoaded===1?'':'s'}.`);
   if(unusedEntries.length > 0){
     lines.push(`ℹ ${unusedEntries.length} config entr${unusedEntries.length===1?'y':'ies'} weren't needed (not on this board):`);
     for(const u of unusedEntries.slice(0, 8)) lines.push(`    • ${u.value||'—'} / ${u.package||'—'}`);
@@ -3331,11 +3639,10 @@ document.getElementById('toStep4').addEventListener('click', ()=>{
   // Validate: feeders unique among non-skipped groups (warn, not block)
   const seen = new Map();
   const dupes = [];
+  const active = activeGroups();
   for(const g of S.groups){
-    // skip is per-placement now; consider a group "active" if any placement isn't skipped
-    const anyActive = S.parts.some(p =>
-      groupKeyForPart(p) === g.key && !p.skip);
-    if(!anyActive) continue;
+    // skip is per-placement, so a group counts as active if any placement isn't skipped
+    if(!active.has(g)) continue;
     const f = g.settings.feeder;
     if(!isFinite(f) || f < 1 || f > 99){
       alert(`Group "${g.value}/${g.package}" has invalid feeder ${f}. Use 1–99.`);
@@ -3350,6 +3657,7 @@ document.getElementById('toStep4').addEventListener('click', ()=>{
       return;
   }
   populateFiducialDropdowns();
+  renderTrayCards();
   gotoStep(4);
 });
 
@@ -3367,6 +3675,8 @@ document.getElementById('toStep5').addEventListener('click', ()=>{
   resolveFiducialCoords('ll');
   S.board.dpvName = document.getElementById('dpvName').value.trim() || "board.dpv";
   if(!/\.dpv$/i.test(S.board.dpvName)) S.board.dpvName += ".dpv";
+
+  if(!validateTrays()) return;
 
   S.dpv = generateDPV();
   document.getElementById('dpvPreview').textContent = S.dpv;
@@ -3424,12 +3734,7 @@ function generateDPV(){
   // Only emit a Station row if the group has at least one NON-SKIPPED placement
   // on the board. (A group whose every placement is individually skipped doesn't
   // need a feeder — the machine will never pick from it.)
-  const groupsWithActiveParts = new Set();
-  for(const p of S.parts){
-    if(p.skip) continue;
-    const g = findGroupForPart(p);
-    if(g) groupsWithActiveParts.add(g);
-  }
+  const groupsWithActiveParts = activeGroups();
   for(const g of S.groups){
     if(!groupsWithActiveParts.has(g)) continue;
     let status = 0;
@@ -3439,9 +3744,7 @@ function generateDPV(){
     const heightTake = 0;
     const delayTake = 1;
     const feeder = g.settings.feeder;
-    const note = (g.value && g.package)
-      ? `${g.value} ${g.package}`
-      : (g.value || g.package || "part");
+    const note = groupNote(g);
     lines.push(
       `Station,${stIdx},${feeder},0,0,${g.settings.feedRate},${csvField(note)},`+
       `${fmt(g.settings.height)},${fmt(g.settings.speed)},${status},${sx},${sy},${heightTake},${delayTake}`
@@ -3483,7 +3786,7 @@ function generateDPV(){
     let status = 0;
     if(g.settings.vision) status |= 4;
     const stationId = g.settings.feeder;
-    const note = (g.value && g.package) ? `${g.value} ${g.package}` : (g.value || g.package || "part");
+    const note = groupNote(g);
     const x = part.x + S.board.offX;
     const y = part.y + S.board.offY;
     // Per-placement rotation (edited directly in the table) plus the global offset
@@ -3513,8 +3816,29 @@ function generateDPV(){
   S._lastPhantomCount = phantomCount;
   lines.push("");
 
-  // ----- IC TRAY (none used) -----
-  // Skipping ICTray section — only emit if we have IC tray feeders. (We don't model that yet.)
+  // ----- IC TRAY -----
+  // Only user-supplied matrix trays (80–99) go here. Fixed front-tray pockets
+  // (60–74) are built into the machine and need nothing beyond their Station row.
+  // The section is omitted entirely when no tray is in use: a section only has to
+  // appear if the feature is used.
+  const traysUsed = trayStationsInUse();
+  if(traysUsed.length){
+    lines.push("Table,No.,ID,CenterX,CenterY,IntervalX,IntervalY,NumX,NumY,Start");
+    let trIdx = 0;
+    for(const t of traysUsed){
+      const g = getTray(t.station);
+      // CenterX/Y is the FIRST cavity centre. IntervalX/IntervalY is the LAST
+      // cavity centre despite the column name — the machine interpolates the
+      // grid between the two. These are machine coordinates, so the board X/Y
+      // offset is deliberately NOT applied.
+      lines.push(
+        `ICTray,${trIdx},${t.station},${fmt(g.firstX)},${fmt(g.firstY)},`+
+        `${fmt(g.lastX)},${fmt(g.lastY)},${g.numX},${g.numY},${g.start}`
+      );
+      trIdx++;
+    }
+    lines.push("");
+  }
 
   // ----- PCB CALIB (system-generated, leave zero) -----
   lines.push("Table,No.,nType,nAlg,nFinished");
