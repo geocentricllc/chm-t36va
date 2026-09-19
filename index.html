@@ -327,6 +327,9 @@ header::after{
   padding:14px 16px;background:var(--panel-2);border:1px solid var(--line);margin-top:16px;
 }
 .file-info .nm{color:var(--cyan)}
+/* Auto-detected values called out in the Step 1 summary line (units, extents),
+   so a wrong unit guess is visible without opening the dropdown. */
+.sum-hi{color:var(--amber)}
 .file-info .stats{color:var(--ink-dim);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
 
 /* MAPPING */
@@ -1157,13 +1160,20 @@ footer{
         <p>The first <em>data row</em> is detected automatically — preamble lines like <code>[COMMENT]</code>, <code>Centroid Data for…</code>, and <code>[PLACEMENT]</code> are skipped before the header is identified.</p>
 
         <h4>Coordinate units</h4>
-        <p>Auto-detected from the magnitude of the X/Y values:</p>
+        <p>The unit is read from the file whenever the file states one. Three things count as a statement, checked in order:</p>
+        <ul>
+          <li><b>A metadata line</b> — KiCad's <code>## Unit = mm, Angle = deg.</code>, or any <code>Unit: &lt;name&gt;</code> in the first 40 lines</li>
+          <li><b>A unit on the X/Y column header</b> — Altium's <code>Center-X(mm)</code>, or <code>Mid X (mm)</code>, <code>PosX [mil]</code></li>
+          <li><b>A unit suffix on the values</b> — EasyEDA's <code>12.5mm</code></li>
+        </ul>
+        <p><code>mm</code>, <code>mil</code>/<code>thou</code> and <code>in</code>/<code>inch</code>/<code>"</code> are all recognized. A header carrying a unit is matched to its field with the annotation removed, so <code>Center-X(mm)</code> is found as an X column instead of going undetected.</p>
+        <p>Only when the file declares nothing does the converter fall back to the magnitude of the coordinates, measured across every row:</p>
         <ul>
           <li>Max coordinate &lt; 13 → <b>inches</b></li>
           <li>Max coordinate ≤ 300 → <b>millimeters</b></li>
           <li>Max coordinate &gt; 300 → <b>mils</b> (1/1000 inch)</li>
         </ul>
-        <p>The override dropdown on Step 1 lets you change this if the heuristic gets it wrong (rare, but possible for very small boards measured in mils).</p>
+        <p>That fallback still gets an undeclared board under about 13 mm across wrong, reading it as inches. The Step 1 summary names the unit, says where it came from, and prints the resulting board size, so you can see it before continuing. Correct it with the dropdown and the summary updates as you change it.</p>
 
         <h3 id="h-mapping">Feeder mapping</h3>
         <p><b>Step 2</b> shows a table with one row per unique Value+Package pair found in your file. For each, you can optionally set a <b>Feeder ID</b> (the station number on your machine where that reel is loaded) and a <b>Nozzle</b> (N1 or N2). Leave blank to skip — those parts will get auto-assigned defaults on the next step.</p>
@@ -1184,7 +1194,8 @@ footer{
         <h3 id="h-workflow">Workflow walkthrough</h3>
 
         <h4>Step 1 — Load file</h4>
-        <p>Drop or click to browse. After parsing, you'll see file stats and an "Auto-detected — override only if wrong" panel with three dropdowns and a one-line summary of which columns mapped to what. Most boards just need <em>Continue</em>.</p>
+        <p>Drop or click to browse. After parsing, you'll see file stats and an "Auto-detected — override only if wrong" panel with three dropdowns and a one-line summary. The summary names the column each field mapped to, then states which unit the coordinates were read as and the board that produces: overall size, plus the X and Y range. Most boards just need <em>Continue</em>.</p>
+        <div class="callout"><b>Check the board size before continuing.</b> The summary says where the unit came from. "declared in the file", "the column header" and "the value suffix" mean the file stated it; "coordinate size" means it was guessed, and that is when the board figure is worth a look. If you know the board is 12 × 10 mm and the summary reports 221 × 140 mm, it was read as inches — set Coordinate Units to Millimeters and the figure corrects itself. The same readout catches an unset CAD origin: a board whose X range starts in the hundreds is being measured from the page corner, not the board corner.</div>
         <p><b>When to touch the overrides:</b></p>
         <ul>
           <li>Heuristic picked the wrong units (small mil-units board misread as mm)</li>
@@ -1476,12 +1487,16 @@ const S = {
   filename: "",
   mapping: {ref:-1,val:-1,pkg:-1,x:-1,y:-1,rot:-1,side:-1,dnp:-1},
   units: "mm",
+  unitSource: "",   // how S.units was decided, shown in the Step 1 summary:
+                    // a declaration in the file, or the coordinate-size fallback
   sideFilter: "top",
   dnp: "yes",
   parts: [],        // filtered, normalized, in mm: {ref,val,pkg,x,y,rot,side,dnp,skip}
   uniqueParts: [],  // [{val, pkg, count, key}] — populated for Step 2 mapping table
   feederMap: new Map(),  // key (val|pkg lowercased) → {feeder, nozzle} — defaults for Step 3
   groups: [],       // {key,value,package,refs:[],settings:{...}}
+  groupByRef: false,// true when the file carries no Value and no Package column at
+                    // all; each placement then becomes its own group, keyed by refdes
   board: {offX:0,offY:0,rotOff:0,fid:{ulX:0,ulY:0,lrX:0,lrY:0,llX:0,llY:0,ulRef:"",lrRef:"",llRef:""},dpvName:"board.dpv"},
   dpv: ""
 };
@@ -1626,11 +1641,37 @@ function onFileParsed(displayName, sizeBytes){
 
 /* Wire the inline override controls so user changes propagate to S */
 document.getElementById('units').addEventListener('change',
-  e => { S.units = e.target.value; });
+  e => { S.units = e.target.value; S.unitSource = "your override"; refreshMapSummary(); });
 document.getElementById('sideFilter').addEventListener('change',
   e => { S.sideFilter = e.target.value; });
 document.getElementById('dnp').addEventListener('change',
   e => { S.dnp = e.target.value; });
+
+/* Coordinate extents of the whole file, in mm, under the CURRENTLY selected
+   unit. Reads every row rather than the 50-row sample guessUnits() works from,
+   so the numbers describe the real board — which is the point: if the unit
+   guess is wrong, the span printed next to it will be obviously wrong too.
+   Unfiltered by side/DNP; this describes the file, not the placement list. */
+function computeExtents(){
+  const m = S.mapping;
+  if(!S.raw || m.x < 0 || m.y < 0) return null;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, n = 0;
+  for(const r of S.raw.rows){
+    const x = parseFloat(stripUnit(r[m.x]));
+    const y = parseFloat(stripUnit(r[m.y]));
+    if(!isFinite(x) || !isFinite(y)) continue;
+    const mx = toMM(x), my = toMM(y);
+    if(mx < minX) minX = mx;
+    if(mx > maxX) maxX = mx;
+    if(my < minY) minY = my;
+    if(my > maxY) maxY = my;
+    n++;
+  }
+  if(!n) return null;
+  return {minX, maxX, minY, maxY, spanX: maxX - minX, spanY: maxY - minY, count: n};
+}
+
+const UNIT_LABEL = {mm: "millimeters", mil: "mils", inch: "inches"};
 
 function buildMapSummary(){
   const m = S.mapping;
@@ -1645,7 +1686,27 @@ function buildMapSummary(){
   if(m.pkg >= 0)  parts.push(`<b>Package</b>: ${escapeHtml(colName(m.pkg))}`);
   if(m.side >= 0) parts.push(`<b>Side</b>: ${escapeHtml(colName(m.side))}`);
   if(m.dnp >= 0)  parts.push(`<b>DNP</b>: ${escapeHtml(colName(m.dnp))}`);
+
+  // Read the file as <unit>, and here is the board that produces. A misread
+  // unit shows up here as a board that is 25x too big or 39x too small.
+  const src = S.unitSource ? ` <span style="color:var(--ink-faint)">from ${escapeHtml(S.unitSource)}</span>` : "";
+  parts.push(`<b>Read as</b>: <span class="sum-hi">${UNIT_LABEL[S.units] || S.units}</span>${src}`);
+  const e = computeExtents();
+  if(e){
+    const d1 = v => (Math.round(v * 10) / 10).toFixed(1);
+    parts.push(`<b>Board</b>: <span class="sum-hi">${d1(e.spanX)} × ${d1(e.spanY)} mm</span>`);
+    parts.push(`<b>X</b> ${d1(e.minX)} → ${d1(e.maxX)}`);
+    parts.push(`<b>Y</b> ${d1(e.minY)} → ${d1(e.maxY)}`);
+  }
   return parts.join(" · ");
+}
+
+/* Repaint the summary in place. Called whenever something it reports changes
+   (currently the unit override) so the printed board size never goes stale. */
+function refreshMapSummary(){
+  if(!S.raw) return;
+  const el = document.getElementById('mapSummary');
+  if(el) el.innerHTML = buildMapSummary();
 }
 
 document.getElementById('loadSample').addEventListener('click', ()=>{
@@ -1786,11 +1847,13 @@ function parseMnt(text){
     headers: ["RefDes", "LocationX", "LocationY", "Rotation", "Value", "Package"],
     rows,
     delim: "MNT",
-    headerIdx: -1
+    headerIdx: -1,
+    declaredUnit: null   // mountsmd.ulp writes bare numbers with no unit line
   };
   // Pre-set the mapping so Step 2 isn't needed
   S.mapping = {ref:0, x:1, y:2, rot:3, val:4, pkg:5, side:-1, dnp:-1};
   S.units = "mm";              // .mnt files (mountsmd.ulp output) are mm by default in current versions
+  S.unitSource = "the .mnt convention";
   S.sideFilter = "any";        // .mnt is already top-only by Fusion's split
   S.dnp = "no";                // no DNP column
 }
@@ -1801,6 +1864,11 @@ function parseMnt(text){
 function parseRaw(text){
   // Strip BOM
   if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+  // Read any unit the file states about itself NOW, while the metadata lines are
+  // still here. The comment stripping below deletes them, which is how a KiCad
+  // export saying "## Unit = mm" used to end up guessed at instead of read.
+  const declaredUnit = findDeclaredUnitLine(text.split(/\r\n|\n|\r/));
 
   // ============================================================
   // KiCad ASCII (.pos) pre-processing
@@ -1925,7 +1993,7 @@ function parseRaw(text){
     if(/^\[.*\]/.test(lines[i].trim())) continue;
     rows.push(cells);
   }
-  S.raw = {headers, rows, delim, headerIdx};
+  S.raw = {headers, rows, delim, headerIdx, declaredUnit};
 }
 
 /* ============================================================
@@ -1954,11 +2022,17 @@ const FIELDS = [
    Stores results in S.mapping / S.units / S.sideFilter / S.dnp. Pure logic — no DOM. */
 function autoMap(){
   const headers = S.raw.headers;
+  // Several hints anchor on the end of the name ("^mid\s*x$"), so a header that
+  // carries its unit — "Mid X (mm)", "Center-X(mm)" — matches nothing and the
+  // column goes undetected. Match against the name with a unit annotation
+  // removed as well as the raw header. Only a recognized unit word is stripped,
+  // so "Value (BOM)" and the like are left alone.
+  const bases = headers.map(headerBaseName);
 
   FIELDS.forEach(f => {
     let best = -1;
     for(const re of f.hints){
-      const idx = headers.findIndex(h => re.test(h));
+      const idx = headers.findIndex((h, i) => re.test(h) || re.test(bases[i]));
       if(idx >= 0){ best = idx; break; }
     }
     S.mapping[f.k] = best;
@@ -1974,17 +2048,120 @@ function autoMap(){
   S.dnp = (S.mapping.dnp >= 0) ? "yes" : "no";
 }
 
-function guessUnits(){
-  const xi = S.mapping.x, yi = S.mapping.y;
-  if(xi < 0) return "mm";
-  let maxAbs = 0;
-  const sample = Math.min(50, S.raw.rows.length);
-  for(let i=0;i<sample;i++){
-    const vx = parseFloat(stripUnit(S.raw.rows[i][xi])); if(isFinite(vx)) maxAbs = Math.max(maxAbs, Math.abs(vx));
-    if(yi >= 0){
-      const vy = parseFloat(stripUnit(S.raw.rows[i][yi])); if(isFinite(vy)) maxAbs = Math.max(maxAbs, Math.abs(vy));
+/* ============================================================
+   UNITS — read what the file says, and only guess when it says nothing.
+   Three places a file can declare itself, in descending order of trust:
+     1. A metadata line, e.g. KiCad's "## Unit = mm, Angle = deg."
+     2. A unit in the X/Y column header, e.g. Altium's "Center-X(mm)"
+     3. A unit suffix on the values themselves, e.g. "12.5mm"
+   Anything a reader would call a statement of units beats a guess from
+   magnitude, which cannot tell a 12 mm board from a 12 inch one.
+============================================================ */
+const UNIT_ALIASES = [
+  [/^(?:mm|millimet(?:er|re)s?)$/i, "mm"],
+  [/^(?:mil|mils|thou)$/i,          "mil"],
+  [/^(?:in|ins|inch|inches|")$/i,   "inch"]
+];
+
+// A unit word -> one of the three units this app converts from, or null.
+function normalizeUnit(tok){
+  if(!tok) return null;
+  const t = String(tok).trim().replace(/[.,;:]+$/, "");
+  for(const [re, u] of UNIT_ALIASES) if(re.test(t)) return u;
+  return null;
+}
+
+/* A line that states the unit outright. Requires a ":" or "=" after the word,
+   so a data row or a column merely named "Unit" can't match. Scans the preamble
+   only — a declaration never appears a thousand rows into a file. */
+function findDeclaredUnitLine(lines){
+  const limit = Math.min(40, lines.length);
+  for(let i = 0; i < limit; i++){
+    const m = lines[i].match(/\bunits?\s*[:=]\s*([A-Za-z"]+)/i);
+    if(m){
+      const u = normalizeUnit(m[1]);
+      if(u) return u;
     }
   }
+  return null;
+}
+
+/* A column header with any unit annotation taken off the end: "Mid X (mm)" ->
+   "Mid X". Used for column matching; the raw header is what gets displayed and
+   what unitFromHeader() reads the unit out of. */
+function headerBaseName(h){
+  const str = String(h == null ? "" : h).trim();
+  const paren = str.match(/^(.*?)\s*[([{]\s*([A-Za-z"]+)\s*[)\]}]$/);
+  if(paren && normalizeUnit(paren[2])) return paren[1].trim();
+  const bare = str.match(/^(.*?)[\s_-]+([A-Za-z"]+)$/);
+  if(bare && normalizeUnit(bare[2])) return bare[1].trim();
+  return str;
+}
+
+// A unit inside a column header: "Center-X(mm)", "PosX [mil]", "Mid X mm".
+function unitFromHeader(h){
+  if(!h) return null;
+  const str = String(h).trim();
+  const paren = str.match(/[([{]\s*([A-Za-z"]+)\s*[)\]}]\s*$/);
+  if(paren) return normalizeUnit(paren[1]);
+  const trailing = str.match(/[\s_-]([A-Za-z"]+)$/);
+  return trailing ? normalizeUnit(trailing[1]) : null;
+}
+
+/* A unit suffix on the values, e.g. EasyEDA's "12.5mm". Needs a few agreeing
+   samples; mixed suffixes in one column mean something odd, so we decline. */
+function unitFromValues(rows, idx){
+  if(idx < 0) return null;
+  let seen = null, hits = 0;
+  for(const r of rows){
+    const v = r[idx];
+    if(typeof v !== "string") continue;
+    const m = v.trim().match(/([A-Za-z"]+)$/);
+    if(!m) continue;
+    const u = normalizeUnit(m[1]);
+    if(!u) continue;
+    if(seen && seen !== u) return null;
+    seen = u;
+    if(++hits >= 3) break;
+  }
+  return seen;
+}
+
+// The declared unit and where it was found, or null if the file never says.
+function resolveDeclaredUnit(){
+  if(!S.raw) return null;
+  const m = S.mapping;
+  if(S.raw.declaredUnit) return {unit: S.raw.declaredUnit, source: "declared in the file"};
+  const hx = unitFromHeader(S.raw.headers[m.x]);
+  const hy = unitFromHeader(S.raw.headers[m.y]);
+  if(hx && hy && hx !== hy) return null;          // headers disagree — fall through to the guess
+  if(hx || hy) return {unit: hx || hy, source: "the column header"};
+  const vx = unitFromValues(S.raw.rows, m.x);
+  if(vx) return {unit: vx, source: "the value suffix"};
+  return null;
+}
+
+function guessUnits(){
+  const xi = S.mapping.x, yi = S.mapping.y;
+  if(xi < 0){ S.unitSource = "the default"; return "mm"; }
+
+  const declared = resolveDeclaredUnit();
+  if(declared){
+    S.unitSource = declared.source;
+    return declared.unit;
+  }
+
+  // Nothing declared, so fall back to magnitude. Every row is measured: a
+  // sample of the first N can miss the one connector out at the board edge and
+  // shrink the apparent board into the inch band.
+  let maxAbs = 0;
+  for(const row of S.raw.rows){
+    const vx = parseFloat(stripUnit(row[xi])); if(isFinite(vx)) maxAbs = Math.max(maxAbs, Math.abs(vx));
+    if(yi >= 0){
+      const vy = parseFloat(stripUnit(row[yi])); if(isFinite(vy)) maxAbs = Math.max(maxAbs, Math.abs(vy));
+    }
+  }
+  S.unitSource = "coordinate size";
   // Typical PCB sizes: mm = 0–300, mil = 100–10000+, inch = 0–12.
   if(maxAbs > 300) return "mil";
   if(maxAbs > 0 && maxAbs < 13) return "inch";
@@ -2500,6 +2677,9 @@ function buildGroups(){
   const map = new Map();
   const haveVal = S.parts.some(p => p.val);
   const havePkg = S.parts.some(p => p.pkg);
+  // Decided once per dataset, before any key is built, because groupKeyForPart()
+  // reads it for every lookup afterwards.
+  S.groupByRef = !(haveVal || havePkg);
 
   // First pass: collect every feeder ID claimed by an explicit mapping so the
   // sequential auto-assign for unmapped groups can avoid those IDs and we don't
@@ -2520,15 +2700,7 @@ function buildGroups(){
   }
 
   for(const p of S.parts){
-    let key;
-    if(haveVal || havePkg){
-      key = (p.val||"_") + "|" + (p.pkg||"_");
-    } else {
-      // No value, no package — group by ref designator letter prefix
-      // (R1, R2, R3 -> "R"; C1, C2 -> "C"; U1 -> "U"). Each part is then its own
-      // entry within that prefix, which means each ref becomes its own group.
-      key = p.ref;
-    }
+    const key = groupKeyForPart(p);
     if(!map.has(key)){
       const fr = guessFeedRate(p.pkg);
       const guessedNozzle = guessNozzle(p.pkg);
@@ -2747,9 +2919,22 @@ function renderStatbar(){
   `;
 }
 
-// Look up the group that a part belongs to, by Value+Package key match.
+/* Canonical group key for a placement.
+   Every site that builds, looks up, or validates a group goes through this, so
+   the formats cannot drift apart: buildGroups() stores it as g.key,
+   findGroupForPart() and the Step 3 -> 4 feeder validation look up by it, and it
+   is the same configKey() that Step 2 keys S.feederMap by — so a mapped
+   Value+Package always resolves to the group it was mapped for.
+   Case- and whitespace-insensitive, which means "100nF/C_0603" and
+   "100nf/c_0603" are one part type here, exactly as they are one row on Step 2. */
+function groupKeyForPart(p){
+  if(S.groupByRef) return "ref:" + (p.ref || "").toLowerCase().trim();
+  return configKey(p.val, p.pkg);
+}
+
+// Look up the group that a part belongs to.
 function findGroupForPart(p){
-  const key = (p.val||"_") + "|" + (p.pkg||"_");
+  const key = groupKeyForPart(p);
   return S.groups.find(g => g.key === key) || null;
 }
 
@@ -3149,7 +3334,7 @@ document.getElementById('toStep4').addEventListener('click', ()=>{
   for(const g of S.groups){
     // skip is per-placement now; consider a group "active" if any placement isn't skipped
     const anyActive = S.parts.some(p =>
-      configKey(p.val, p.pkg) === g.key && !p.skip);
+      groupKeyForPart(p) === g.key && !p.skip);
     if(!anyActive) continue;
     const f = g.settings.feeder;
     if(!isFinite(f) || f < 1 || f > 99){

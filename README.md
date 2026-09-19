@@ -119,13 +119,21 @@ The override dropdowns on Step 1 let you correct the auto-detection if the heuri
 
 ### Coordinate units
 
-Auto-detected from the magnitude of X/Y values:
+The unit is read from the file whenever the file states one. Three places count as a statement, checked in this order:
+
+1. **A metadata line** — KiCad's `## Unit = mm, Angle = deg.`, or anything of the form `Unit: <name>` in the first 40 lines
+2. **A unit on the X/Y column header** — Altium's `Center-X(mm)`, or `Mid X (mm)`, `PosX [mil]`
+3. **A unit suffix on the values** — EasyEDA's `12.5mm`
+
+`mm` / `millimeters`, `mil` / `mils` / `thou`, and `in` / `inch` / `inches` / `"` are all recognized. A header carrying a unit is matched to its field with the annotation removed, so `Center-X(mm)` is found as an X column rather than going undetected.
+
+Only when the file declares nothing does the converter fall back to the magnitude of the coordinates, measured across **every** row:
 
 - Max coordinate < 13 → **inches**
 - Max coordinate ≤ 300 → **millimeters**
 - Max coordinate > 300 → **mils** (1/1000 inch)
 
-The override dropdown lets you correct this for unusual cases.
+That fallback is still a guess, and it gets an undeclared board under roughly 13 mm across wrong, reading it as inches. With a centre origin the test sees half the board, so the threshold is effectively a 26 mm board. The Step 1 summary names the unit, says where it came from, and prints the board size that results, so a bad guess is visible before you continue. The override dropdown corrects it.
 
 ---
 
@@ -133,7 +141,17 @@ The override dropdown lets you correct this for unusual cases.
 
 ### Step 1 — Load file
 
-Drop or click to browse. After parsing, you'll see file stats and a one-line summary of which columns mapped to what. For most files, just hit **Continue**.
+Drop or click to browse. After parsing, you'll see file stats and a one-line summary. It names the column each field mapped to, then reports which unit the coordinates were read as, where that unit came from, and the board that produces — overall size, plus the X and Y range:
+
+```
+RefDes: Designator · X/Y: Mid X / Mid Y · Rot: Rotation · Value: Comment ·
+Package: Footprint · Side: Layer · Read as: millimeters from coordinate size ·
+Board: 40.0 × 23.0 mm · X 2.0 → 42.0 · Y 2.0 → 25.0
+```
+
+For most files, just hit **Continue**.
+
+**Glance at the board size first.** The summary says where the unit came from. "declared in the file", "the column header" and "the value suffix" mean the file stated it outright; "coordinate size" means it was guessed, and that is when the board figure is worth a look. A board you know to be 12 × 10 mm reported as 221 × 140 mm was read as inches; switch Coordinate Units to Millimeters and the figure corrects itself as you change it. The same line catches an unset CAD origin: an X range starting in the hundreds means the coordinates are measured from the page corner rather than the board corner.
 
 Touch the override dropdowns when:
 
